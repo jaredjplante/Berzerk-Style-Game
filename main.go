@@ -7,7 +7,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/lafriks/go-tiled"
 	"github.com/solarlune/paths"
-
 	_ "image"
 	"log"
 	"path"
@@ -63,10 +62,24 @@ type Shot struct {
 }
 
 func (game *game) Update() error {
+	return nil
+
 }
 
 func (game *game) Draw(screen *ebiten.Image) {
-
+	// Drawing the map tiles
+	drawOptions := ebiten.DrawImageOptions{}
+	for tileY := 0; tileY < game.Level.Height; tileY += 1 {
+		for tileX := 0; tileX < game.Level.Width; tileX += 1 {
+			drawOptions.GeoM.Reset()
+			TileXpos := float64(game.Level.TileWidth * tileX)
+			TileYpos := float64(game.Level.TileHeight * tileY)
+			drawOptions.GeoM.Translate(TileXpos, TileYpos)
+			tileToDraw := game.Level.Layers[0].Tiles[tileY*game.Level.Width+tileX]
+			ebitenTileToDraw := game.tileDict[tileToDraw.ID]
+			screen.DrawImage(ebitenTileToDraw, &drawOptions)
+		}
+	}
 }
 
 func main() {
