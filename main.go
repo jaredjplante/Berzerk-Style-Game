@@ -7,6 +7,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/lafriks/go-tiled"
 	"github.com/solarlune/paths"
+	"strings"
+
 	_ "image"
 	"log"
 	"path"
@@ -23,7 +25,8 @@ const (
 )
 
 type game struct {
-	Level          *tiled.Map
+	curMap         *tiled.Map
+	mapIterator    int
 	tileDict       map[uint32]*ebiten.Image
 	boundTiles     []boundaries
 	mainplayer     player
@@ -83,14 +86,44 @@ func (game *game) Draw(screen *ebiten.Image) {
 }
 
 func main() {
-
+	gameMap := loadMapFromEmbedded(path.Join("assets", "map1.tmx"))
+	pathMap := makeSearchMap(gameMap)
+	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
+	searchablePathMap.SetWalkable('4', false)
+	ebiten.SetWindowSize(gameMap.TileWidth*gameMap.Width, gameMap.TileHeight*gameMap.Height)
+	ebiten.SetWindowTitle("Maps Embedded")
+	ebitenImageMap := makeEbitenImagesFromMap(*gameMap)
+	oneLevelGame := game{
+		curMap:         gameMap,
+		tileDict:       ebitenImageMap,
+		pathFindingMap: pathMap,
+		pathMap:        searchablePathMap,
+	}
+	err := ebiten.RunGame(&oneLevelGame)
+	if err != nil {
+		fmt.Println("Couldn't run game:", err)
+	}
 }
 
 // util funcs
 
 //maps
 
-func makeEbiteImagesFromMap(tiledMap tiled.Map) map[uint32]*ebiten.Image {
+func makeSearchMap(tiledMap *tiled.Map) []string {
+	mapAsStringSlice := make([]string, 0, tiledMap.Height) //each row will be its own string
+	row := strings.Builder{}
+	for position, tile := range tiledMap.Layers[0].Tiles {
+		if position%tiledMap.Width == 0 && position > 0 { // we get the 2d array as an unrolled one-d array
+			mapAsStringSlice = append(mapAsStringSlice, row.String())
+			row = strings.Builder{}
+		}
+		row.WriteString(fmt.Sprintf("%d", tile.ID))
+	}
+	mapAsStringSlice = append(mapAsStringSlice, row.String())
+	return mapAsStringSlice
+}
+
+func makeEbitenImagesFromMap(tiledMap tiled.Map) map[uint32]*ebiten.Image {
 	idToImage := make(map[uint32]*ebiten.Image)
 	for _, tile := range tiledMap.Tilesets[0].Tiles {
 		embeddedFile, err := EmbeddedAssets.Open(path.Join("assets",
