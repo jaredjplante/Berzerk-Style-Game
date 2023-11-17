@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
+	"github.com/co0p/tankism/lib/collision"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/lafriks/go-tiled"
@@ -39,6 +40,7 @@ type game struct {
 	enemyshots     []Shot
 	spawnrate      int
 	score          int
+	fires          []obj
 }
 
 type player struct {
@@ -62,6 +64,12 @@ type Shot struct {
 	xShot  int
 	yShot  int
 	deltaX int
+}
+
+type obj struct {
+	pict *ebiten.Image
+	xObj int
+	yObj int
 }
 
 func (game *game) Update() error {
@@ -106,6 +114,103 @@ func main() {
 }
 
 // util funcs
+
+//collisions
+
+func getPlayerBounds(game *game) collision.BoundingBox {
+	playerBounds := collision.BoundingBox{
+		X:      float64(game.mainplayer.xLoc),
+		Y:      float64(game.mainplayer.yLoc),
+		Width:  float64(PLAYERS_WIDTH),
+		Height: float64(PLAYERS_HEIGHT),
+	}
+	return playerBounds
+}
+
+func getShooterBounds(game *game, iterator int) collision.BoundingBox {
+	shooterBounds := collision.BoundingBox{
+		X:      float64(game.shootnpc[iterator].xLoc),
+		Y:      float64(game.shootnpc[iterator].yLoc),
+		Width:  float64(PLAYERS_WIDTH),
+		Height: float64(PLAYERS_HEIGHT),
+	}
+	return shooterBounds
+}
+
+func getRegBounds(game *game, iterator int) collision.BoundingBox {
+	regBounds := collision.BoundingBox{
+		X:      float64(game.regnpc[iterator].xLoc),
+		Y:      float64(game.regnpc[iterator].yLoc),
+		Width:  float64(PLAYERS_WIDTH),
+		Height: float64(PLAYERS_HEIGHT),
+	}
+	return regBounds
+}
+
+func getEnemyShotBounds(game *game, iterator int) collision.BoundingBox {
+	regBounds := collision.BoundingBox{
+		X:      float64(game.enemyshots[iterator].xShot),
+		Y:      float64(game.enemyshots[iterator].yShot),
+		Width:  float64(game.enemyshots[iterator].pict.Bounds().Dx()),
+		Height: float64(game.enemyshots[iterator].pict.Bounds().Dy()),
+	}
+	return regBounds
+}
+
+func getFireBounds(game *game, iterator int) collision.BoundingBox {
+	fireBounds := collision.BoundingBox{
+		X:      float64(game.fires[iterator].xObj),
+		Y:      float64(game.fires[iterator].yObj),
+		Width:  float64(game.fires[iterator].pict.Bounds().Dx()),
+		Height: float64(game.fires[iterator].pict.Bounds().Dy()),
+	}
+	return fireBounds
+}
+
+func getTileBounds(game *game, iterator int) collision.BoundingBox {
+	tileBounds := collision.BoundingBox{
+		X:      game.boundTiles[iterator].boundTileX,
+		Y:      game.boundTiles[iterator].boundTileY,
+		Width:  game.boundTiles[iterator].boundWidth,
+		Height: game.boundTiles[iterator].boundHeight,
+	}
+	return tileBounds
+}
+
+func checkPlayerCollisions(game *game) bool {
+	playerBounds := getPlayerBounds(game)
+	for i := 0; i < len(game.shootnpc); i++ {
+		shooterBounds := getShooterBounds(game, i)
+		if collision.AABBCollision(playerBounds, shooterBounds) {
+			return true
+		}
+	}
+	for i := 0; i < len(game.regnpc); i++ {
+		regBounds := getRegBounds(game, i)
+		if collision.AABBCollision(playerBounds, regBounds) {
+			return true
+		}
+	}
+	for i := 0; i < len(game.enemyshots); i++ {
+		enemyShotsBounds := getEnemyShotBounds(game, i)
+		if collision.AABBCollision(playerBounds, enemyShotsBounds) {
+			return true
+		}
+	}
+	for i := 0; i < len(game.fires); i++ {
+		fireBounds := getFireBounds(game, i)
+		if collision.AABBCollision(playerBounds, fireBounds) {
+			return true
+		}
+	}
+	for i := 0; i < len(game.boundTiles); i++ {
+		tileBounds := getTileBounds(game, i)
+		if collision.AABBCollision(playerBounds, tileBounds) {
+			return true
+		}
+	}
+	return false
+}
 
 //maps
 
