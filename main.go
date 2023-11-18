@@ -50,6 +50,8 @@ type player struct {
 	direction   int
 	pframe      int
 	pframeDelay int
+	health      int
+	typing      string
 }
 
 type boundaries struct {
@@ -64,6 +66,7 @@ type Shot struct {
 	xShot  int
 	yShot  int
 	deltaX int
+	typing string
 }
 
 type obj struct {
@@ -73,8 +76,12 @@ type obj struct {
 }
 
 func (game *game) Update() error {
+	checkPlayerCollisions(game)
+	checkEnemyCollisions(game, game.shootnpc)
+	checkEnemyCollisions(game, game.regnpc)
+	checkShotCollisions(game, game.playershots)
+	checkShotCollisions(game, game.enemyshots)
 	return nil
-
 }
 
 func (game *game) Draw(screen *ebiten.Image) {
@@ -115,6 +122,30 @@ func main() {
 
 // util funcs
 
+func killEnemy(game *game, npcs []player, iterator int) {
+	//shift elements to remove enemies
+	npcs = append(npcs[:iterator], npcs[iterator+1:]...)
+	iterator--
+}
+
+func killShots(game *game, shots []Shot, iterator int) {
+	//shift elements to remove projectiles
+	shots = append(shots[:iterator], shots[iterator+1:]...)
+	iterator--
+}
+
+func playerLifeLoss(game *game) {
+	//restart player loc
+	//Ronaldo to do
+	game.mainplayer.health -= 1
+}
+
+func handleDeath(game *game) {
+	//game over
+	//health reaches 0
+	//Ronaldo to do
+}
+
 //collisions
 
 func getPlayerBounds(game *game) collision.BoundingBox {
@@ -143,6 +174,16 @@ func getRegBounds(game *game, iterator int) collision.BoundingBox {
 		Y:      float64(game.regnpc[iterator].yLoc),
 		Width:  float64(PLAYERS_WIDTH),
 		Height: float64(PLAYERS_HEIGHT),
+	}
+	return regBounds
+}
+
+func getPlayerShotBounds(game *game, iterator int) collision.BoundingBox {
+	regBounds := collision.BoundingBox{
+		X:      float64(game.playershots[iterator].xShot),
+		Y:      float64(game.playershots[iterator].yShot),
+		Width:  float64(game.playershots[iterator].pict.Bounds().Dx()),
+		Height: float64(game.playershots[iterator].pict.Bounds().Dy()),
 	}
 	return regBounds
 }
@@ -177,36 +218,143 @@ func getTileBounds(game *game, iterator int) collision.BoundingBox {
 	return tileBounds
 }
 
+// lose life if true
 func checkPlayerCollisions(game *game) bool {
 	playerBounds := getPlayerBounds(game)
 	for i := 0; i < len(game.shootnpc); i++ {
 		shooterBounds := getShooterBounds(game, i)
 		if collision.AABBCollision(playerBounds, shooterBounds) {
+			playerLifeLoss(game)
 			return true
 		}
 	}
 	for i := 0; i < len(game.regnpc); i++ {
 		regBounds := getRegBounds(game, i)
 		if collision.AABBCollision(playerBounds, regBounds) {
+			playerLifeLoss(game)
 			return true
 		}
 	}
 	for i := 0; i < len(game.enemyshots); i++ {
 		enemyShotsBounds := getEnemyShotBounds(game, i)
 		if collision.AABBCollision(playerBounds, enemyShotsBounds) {
+			playerLifeLoss(game)
+			killShots(game, game.enemyshots, i)
 			return true
 		}
 	}
 	for i := 0; i < len(game.fires); i++ {
 		fireBounds := getFireBounds(game, i)
 		if collision.AABBCollision(playerBounds, fireBounds) {
+			playerLifeLoss(game)
 			return true
 		}
 	}
 	for i := 0; i < len(game.boundTiles); i++ {
 		tileBounds := getTileBounds(game, i)
 		if collision.AABBCollision(playerBounds, tileBounds) {
+			playerLifeLoss(game)
 			return true
+		}
+	}
+	return false
+}
+
+// enemy dies if true (for both regular and shooting enemies)
+func checkEnemyCollisions(game *game, npcs []player) bool {
+	for j := 0; j < len(npcs); j++ {
+		enemyBounds := collision.BoundingBox{}
+		if npcs[j].typing == "shoot" {
+			enemyBounds = getShooterBounds(game, j)
+		} else if npcs[j].typing == "reg" {
+			enemyBounds = getRegBounds(game, j)
+		}
+		for i := 0; i < len(game.shootnpc); i++ {
+			// make sure enemy does not collide with itself
+			if j != i || npcs[j].typing != "shoot" {
+				shooterBounds := getShooterBounds(game, i)
+				if collision.AABBCollision(enemyBounds, shooterBounds) {
+					killEnemy(game, npcs, j)
+					killEnemy(game, game.shootnpc, i)
+					return true
+				}
+			}
+		}
+		for i := 0; i < len(game.regnpc); i++ {
+			// make sure enemy does not collide with itself
+			if j != i || npcs[j].typing != "reg" {
+				regBounds := getRegBounds(game, i)
+				if collision.AABBCollision(enemyBounds, regBounds) {
+					killEnemy(game, npcs, j)
+					killEnemy(game, game.regnpc, i)
+					return true
+				}
+			}
+		}
+		for i := 0; i < len(game.playershots); i++ {
+			playerShotsBounds := getPlayerShotBounds(game, i)
+			if collision.AABBCollision(enemyBounds, playerShotsBounds) {
+				game.score += 1
+				killEnemy(game, npcs, j)
+				killShots(game, game.playershots, i)
+				return true
+			}
+		}
+		for i := 0; i < len(game.fires); i++ {
+			fireBounds := getFireBounds(game, i)
+			if collision.AABBCollision(enemyBounds, fireBounds) {
+				killEnemy(game, npcs, j)
+				return true
+			}
+		}
+		for i := 0; i < len(game.boundTiles); i++ {
+			tileBounds := getTileBounds(game, i)
+			if collision.AABBCollision(enemyBounds, tileBounds) {
+				killEnemy(game, npcs, j)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// shots don't go through boundaries (for both player and enemy shots)
+func checkShotCollisions(game *game, shots []Shot) bool {
+	for j := 0; j < len(shots); j++ {
+		shotBounds := collision.BoundingBox{}
+		if shots[j].typing == "player" {
+			shotBounds = getPlayerShotBounds(game, j)
+		} else if shots[j].typing == "npc" {
+			shotBounds = getEnemyShotBounds(game, j)
+		}
+		for i := 0; i < len(game.playershots); i++ {
+			// make sure shot does not collide with itself
+			if j != i {
+				playerShotBounds := getPlayerShotBounds(game, i)
+				if collision.AABBCollision(shotBounds, playerShotBounds) {
+					killShots(game, shots, j)
+					killShots(game, game.playershots, i)
+					return true
+				}
+			}
+		}
+		for i := 0; i < len(game.enemyshots); i++ {
+			// make sure shot does not collide with itself
+			if j != i {
+				enemyShotBounds := getEnemyShotBounds(game, i)
+				if collision.AABBCollision(shotBounds, enemyShotBounds) {
+					killShots(game, shots, j)
+					killShots(game, game.enemyshots, i)
+					return true
+				}
+			}
+		}
+		for i := 0; i < len(game.boundTiles); i++ {
+			tileBounds := getTileBounds(game, i)
+			if collision.AABBCollision(shotBounds, tileBounds) {
+				killShots(game, shots, j)
+				return true
+			}
 		}
 	}
 	return false
