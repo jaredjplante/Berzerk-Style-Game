@@ -11,7 +11,9 @@ import (
 	"github.com/solarlune/paths"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
+
 	"image"
+
 	"math/rand"
 	"strings"
 	"time"
@@ -61,6 +63,7 @@ type game struct {
 	spawnrate      int
 	score          int
 	fires          []obj
+	chosenNum      int
 }
 
 type player struct {
@@ -72,6 +75,7 @@ type player struct {
 	pframeDelay int
 	health      int
 	typing      string
+	chosen      bool
 }
 
 type boundaries struct {
@@ -102,6 +106,7 @@ func (game *game) Update() error {
 	checkEnemyCollisions(game, game.regnpc)
 	checkShotCollisions(game, game.playershots)
 	checkShotCollisions(game, game.enemyshots)
+
 	game.mainplayer.pframeDelay += 1
 	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
 	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && X > 0 {
@@ -122,6 +127,9 @@ func (game *game) Update() error {
 
 		}
 	}
+	checkChosen(game)
+	headToPlayer(game)
+
 	return nil
 }
 
@@ -213,9 +221,9 @@ func main() {
 	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
 	searchablePathMap.SetWalkable('4', false)
 	ebiten.SetWindowSize(gameMap.TileWidth*gameMap.Width, gameMap.TileHeight*gameMap.Height)
-	ebiten.SetWindowTitle("Maps Embedded")
+	ebiten.SetWindowTitle("Jared Plante and Ronaldo Auguste Project 3")
 	ebitenImageMap := makeEbitenImagesFromMap(*gameMap)
-	oneLevelGame := game{
+	game := game{
 		curMap:         gameMap,
 		tileDict:       ebitenImageMap,
 		mainplayer:     myPlayer,
@@ -224,7 +232,7 @@ func main() {
 		pathFindingMap: pathMap,
 		pathMap:        searchablePathMap,
 	}
-	err := ebiten.RunGame(&oneLevelGame)
+	err := ebiten.RunGame(&game)
 	if err != nil {
 		fmt.Println("Couldn't run game:", err)
 	}
@@ -234,6 +242,9 @@ func main() {
 // util funcs
 
 func killEnemy(game *game, npcs []player, iterator int) {
+	if npcs[iterator].chosen == true {
+		game.chosenNum -= 1
+	}
 	//shift elements to remove enemies
 	npcs = append(npcs[:iterator], npcs[iterator+1:]...)
 	iterator--
@@ -255,6 +266,36 @@ func handleDeath(game *game) {
 	//game over
 	//health reaches 0
 	//Ronaldo to do
+}
+
+//ai
+
+func checkChosen(game *game) {
+	if game.chosenNum == 0 {
+		curShoot := len(game.shootnpc)
+		curReg := len(game.regnpc)
+		if curShoot != 0 {
+			game.shootnpc[rand.Intn(curShoot)].chosen = true
+			game.chosenNum += 1
+		}
+		if curReg != 0 {
+			game.regnpc[rand.Intn(curReg)].chosen = true
+			game.chosenNum += 1
+		}
+
+	}
+}
+
+func headToPlayer(game *game) {
+	for i := 0; i < len(game.shootnpc); i++ {
+		if game.shootnpc[i].chosen {
+			startRow := int(game.shootnpc[i].yLoc) / game.curMap.TileHeight
+			startCol := int(game.shootnpc[i].xLoc) / game.curMap.TileWidth
+			startCell := game.pathMap.Get(startCol, startRow)
+			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+			game.path = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
+		}
+	}
 }
 
 //collisions
