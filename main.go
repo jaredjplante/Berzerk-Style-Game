@@ -11,22 +11,40 @@ import (
 	"github.com/solarlune/paths"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
+
+	"image"
+
 	"math/rand"
 	"strings"
+	"time"
 
 	_ "image"
 	"log"
+	_ "math/rand"
 	"path"
+	_ "time"
 )
 
 //go:embed assets/*
 var EmbeddedAssets embed.FS
 
 const (
-	WINDOW_WIDTH   = 1000
-	WINDOW_HEIGHT  = 1000
-	PLAYERS_HEIGHT = 112
-	PLAYERS_WIDTH  = 100
+	WINDOW_WIDTH      = 1000
+	WINDOW_HEIGHT     = 1000
+	PLAYERS_HEIGHT    = 64
+	PLAYERS_WIDTH     = 64
+	NPC1_HEIGHT       = 112
+	NPC1_WIDTH        = 100
+	FRAMES_PER_SHEET  = 8
+	FRAMES_COUNT      = 4
+	numberOfShootNpcs = 4
+	numberOfRegNpcs   = 3
+)
+const (
+	UP = iota
+	LEFT
+	DOWN
+	RIGHT
 )
 
 type game struct {
@@ -82,13 +100,36 @@ type obj struct {
 }
 
 func (game *game) Update() error {
+	getPlayerInput(game)
 	checkPlayerCollisions(game)
 	checkEnemyCollisions(game, game.shootnpc)
 	checkEnemyCollisions(game, game.regnpc)
 	checkShotCollisions(game, game.playershots)
 	checkShotCollisions(game, game.enemyshots)
+
+	game.mainplayer.pframeDelay += 1
+	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
+	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && X > 0 {
+		X -= 5
+	} else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) && X < WINDOW_WIDTH-PLAYERS_WIDTH {
+		X += 5
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) && Y > 0 {
+		Y -= 5
+	} else if ebiten.IsKeyPressed(ebiten.KeyArrowDown) && Y < WINDOW_HEIGHT-PLAYERS_HEIGHT {
+		Y += 5
+	}
+
+	if game.mainplayer.pframeDelay%FRAMES_COUNT == 0 {
+		game.mainplayer.pframe += 1
+		if game.mainplayer.pframe >= FRAMES_PER_SHEET {
+			game.mainplayer.pframe = 0
+
+		}
+	}
 	checkChosen(game)
 	headToPlayer(game)
+
 	return nil
 }
 
@@ -106,6 +147,37 @@ func (game *game) Draw(screen *ebiten.Image) {
 			screen.DrawImage(ebitenTileToDraw, &drawOptions)
 		}
 	}
+
+	// Draw Player
+	drawOptions.GeoM.Reset()
+	drawOptions.GeoM.Translate(float64(game.mainplayer.xLoc), float64(game.mainplayer.yLoc))
+	screen.DrawImage(game.mainplayer.spriteSheet.SubImage(image.Rect(
+		game.mainplayer.pframe*PLAYERS_WIDTH,
+		game.mainplayer.direction*PLAYERS_HEIGHT,
+		(game.mainplayer.pframe)*PLAYERS_WIDTH+PLAYERS_WIDTH,
+		(game.mainplayer.direction)*PLAYERS_HEIGHT+PLAYERS_HEIGHT)).(*ebiten.Image), &drawOptions)
+
+	for _, npc := range game.regnpc {
+		drawOptions := ebiten.DrawImageOptions{}
+		drawOptions.GeoM.Translate(float64(npc.xLoc), float64(npc.yLoc))
+		screen.DrawImage(npc.spriteSheet.SubImage(image.Rect(
+			npc.pframe*NPC1_WIDTH,
+			npc.direction*NPC1_HEIGHT,
+			(npc.pframe+1)*NPC1_WIDTH,
+			(npc.direction+1)*NPC1_HEIGHT)).(*ebiten.Image), &drawOptions)
+	}
+
+	// Draw shooting NPCs
+	for _, npc := range game.shootnpc {
+		drawOptions := ebiten.DrawImageOptions{}
+		drawOptions.GeoM.Translate(float64(npc.xLoc), float64(npc.yLoc))
+		screen.DrawImage(npc.spriteSheet.SubImage(image.Rect(
+			npc.pframe*NPC1_WIDTH,
+			npc.direction*NPC1_HEIGHT,
+			(npc.pframe+1)*NPC1_WIDTH,
+			(npc.direction+1)*NPC1_HEIGHT)).(*ebiten.Image), &drawOptions)
+	}
+
 	//draw text
 	DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), 100, 12, game)
 }
@@ -113,6 +185,39 @@ func (game *game) Draw(screen *ebiten.Image) {
 func main() {
 	gameMap := loadMapFromEmbedded(path.Join("assets", "map1.tmx"))
 	pathMap := makeSearchMap(gameMap)
+	animationGuy := LoadEmbeddedImage("", "dude.png")
+	animationOldLady := LoadEmbeddedImage("", "oldlady.png")
+	animationOldMan := LoadEmbeddedImage("", "oldman.png")
+	animationWarrior := LoadEmbeddedImage("", "warrior.png")
+	animationShooter := LoadEmbeddedImage("", "shooter.png")
+	rand.Seed(time.Now().UnixNano())
+
+	regNpcs := []player{
+		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2},  // NPC1
+		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC2
+		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC3
+	}
+	shootNpcs := []player{
+		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC4
+	}
+	getRandomPosition := func(maxWidth, maxHeight, npcWidth, npcHeight int) (int, int) {
+		x := rand.Intn(maxWidth - npcWidth)
+		y := rand.Intn(maxHeight - npcHeight)
+		return x, y
+	}
+
+	regNpcs = make([]player, numberOfRegNpcs)
+	for i := range regNpcs {
+		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		regNpcs[i] = player{spriteSheet: animationOldMan, xLoc: x, yLoc: y}
+	}
+
+	shootNpcs = make([]player, numberOfShootNpcs)
+	for i := range shootNpcs {
+		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y}
+	}
+	myPlayer := player{spriteSheet: animationGuy, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}
 	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
 	searchablePathMap.SetWalkable('4', false)
 	ebiten.SetWindowSize(gameMap.TileWidth*gameMap.Width, gameMap.TileHeight*gameMap.Height)
@@ -121,6 +226,9 @@ func main() {
 	game := game{
 		curMap:         gameMap,
 		tileDict:       ebitenImageMap,
+		mainplayer:     myPlayer,
+		regnpc:         regNpcs,
+		shootnpc:       shootNpcs,
 		pathFindingMap: pathMap,
 		pathMap:        searchablePathMap,
 	}
@@ -128,6 +236,7 @@ func main() {
 	if err != nil {
 		fmt.Println("Couldn't run game:", err)
 	}
+
 }
 
 // util funcs
@@ -474,4 +583,23 @@ func LoadEmbeddedImage(folderName string, imageName string) *ebiten.Image {
 		fmt.Println("Error loading tile image:", imageName, err)
 	}
 	return ebitenImage
+}
+
+func getPlayerInput(game *game) {
+	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && game.mainplayer.xLoc > 0 {
+		game.mainplayer.xLoc -= 5
+		game.mainplayer.direction = LEFT
+	} else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) && game.mainplayer.xLoc < WINDOW_WIDTH-PLAYERS_WIDTH {
+		game.mainplayer.xLoc += 5
+		game.mainplayer.direction = RIGHT
+	}
+
+	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) && game.mainplayer.yLoc > 0 {
+		game.mainplayer.yLoc -= 5
+		game.mainplayer.direction = UP
+	} else if ebiten.IsKeyPressed(ebiten.KeyArrowDown) && game.mainplayer.yLoc < WINDOW_HEIGHT-PLAYERS_HEIGHT {
+		game.mainplayer.yLoc += 5
+		game.mainplayer.direction = DOWN
+	}
+
 }
