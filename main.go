@@ -6,8 +6,11 @@ import (
 	"github.com/co0p/tankism/lib/collision"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/lafriks/go-tiled"
 	"github.com/solarlune/paths"
+	"golang.org/x/image/colornames"
+	"golang.org/x/image/font/basicfont"
 	"strings"
 
 	_ "image"
@@ -98,6 +101,8 @@ func (game *game) Draw(screen *ebiten.Image) {
 			screen.DrawImage(ebitenTileToDraw, &drawOptions)
 		}
 	}
+	//draw text
+	DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), 100, 12, game)
 }
 
 func main() {
@@ -358,6 +363,19 @@ func checkShotCollisions(game *game, shots []Shot) bool {
 		}
 	}
 	return false
+}
+
+//text
+
+func DrawCenteredText(screen *ebiten.Image, s string, cx, cy int, game *game) { //from https://github.com/sedyh/ebitengine-cheatsheet
+	bounds := text.BoundString(basicfont.Face7x13, s)
+	x, y := cx-bounds.Min.X-bounds.Dx()/2, cy-bounds.Min.Y-bounds.Dy()/2
+
+	// draw text box
+	rectWidth := bounds.Dx() + 10 + game.score
+	rectHeight := bounds.Dy() + 5
+	ebitenutil.DrawRect(screen, float64(x)-5, float64(y)-13, float64(rectWidth), float64(rectHeight), colornames.Burlywood)
+	text.Draw(screen, s, basicfont.Face7x13, x, y, colornames.Black)
 }
 
 //maps
