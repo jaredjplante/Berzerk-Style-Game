@@ -64,6 +64,7 @@ type game struct {
 	score          int
 	fires          []obj
 	chosenNum      int
+	gameOver       bool
 }
 
 type player struct {
@@ -188,9 +189,15 @@ func (game *game) Draw(screen *ebiten.Image) {
 			(npc.pframe+1)*NPC1_WIDTH,
 			(npc.direction+1)*NPC1_HEIGHT)).(*ebiten.Image), &drawOptions)
 	}
+	if game.gameOver {
+		// Display Game Over message
+		DrawCenteredText(screen, "Game Over", WINDOW_WIDTH/2, WINDOW_HEIGHT/2, game)
+		return
+	}
 
 	//draw text
 	DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), 100, 12, game)
+	DrawCenteredText(screen, fmt.Sprintf("Health: %d", game.mainplayer.health), 250, 12, game)
 }
 
 func main() {
@@ -228,7 +235,8 @@ func main() {
 		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
 		shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y, typing: "shoot"}
 	}
-	myPlayer := player{spriteSheet: animationGuy, xLoc: WINDOW_WIDTH / 2, yLoc: 300}
+	myPlayer := player{spriteSheet: animationGuy, xLoc: WINDOW_WIDTH / 2, yLoc: 300, health: 3}
+	fmt.Printf("Initial Player Health: %d\n", myPlayer.health)
 	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
 	searchablePathMap.SetWalkable('3', false)
 	ebiten.SetWindowSize(gameMap.TileWidth*gameMap.Width, gameMap.TileHeight*gameMap.Height)
@@ -269,15 +277,20 @@ func killShots(game *game, shots []Shot, iterator int) {
 }
 
 func playerLifeLoss(game *game) {
-	//restart player loc
-	//Ronaldo to do
 	game.mainplayer.health -= 1
+	fmt.Printf("Player Health: %d\n", game.mainplayer.health)
+	if game.mainplayer.health <= 0 {
+		handleDeath(game)
+	} else {
+		// respawn the player at specific location
+		game.mainplayer.xLoc = 100
+		game.mainplayer.yLoc = 100
+	}
 }
 
+// maybe add in healthbar?
 func handleDeath(game *game) {
-	//game over
-	//health reaches 0
-	//Ronaldo to do
+	game.gameOver = true
 }
 
 //ai
@@ -617,6 +630,10 @@ func LoadEmbeddedImage(folderName string, imageName string) *ebiten.Image {
 }
 
 func getPlayerInput(game *game) {
+	if game.gameOver {
+		game.mainplayer.xLoc += 0
+		game.mainplayer.yLoc += 0
+	}
 	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && game.mainplayer.xLoc > 0 {
 		game.mainplayer.xLoc -= 5
 		game.mainplayer.direction = LEFT
