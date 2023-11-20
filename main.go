@@ -29,16 +29,17 @@ import (
 var EmbeddedAssets embed.FS
 
 const (
-	WINDOW_WIDTH      = 1000
-	WINDOW_HEIGHT     = 1000
-	PLAYERS_HEIGHT    = 64
-	PLAYERS_WIDTH     = 64
-	NPC1_HEIGHT       = 112
-	NPC1_WIDTH        = 100
-	FRAMES_PER_SHEET  = 8
-	FRAMES_COUNT      = 4
-	numberOfShootNpcs = 4
-	numberOfRegNpcs   = 3
+	WINDOW_WIDTH         = 1000
+	WINDOW_HEIGHT        = 1000
+	PLAYERS_HEIGHT       = 64
+	PLAYERS_WIDTH        = 64
+	NPC1_HEIGHT          = 72
+	NPC1_WIDTH           = 64
+	FRAMES_PER_SHEET     = 8
+	NPC_FRAMES_PER_SHEET = 3
+	FRAMES_COUNT         = 4
+	numberOfShootNpcs    = 4
+	numberOfRegNpcs      = 3
 )
 const (
 	UP = iota
@@ -109,6 +110,8 @@ func (game *game) Update() error {
 	checkShotCollisions(game, game.enemyshots)
 	checkChosen(game)
 	headToPlayer(game)
+	NpcAnimation(game, game.shootnpc)
+	NpcAnimation(game, game.regnpc)
 
 	game.mainplayer.pframeDelay += 1
 	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
@@ -260,6 +263,19 @@ func main() {
 }
 
 // util funcs
+
+func NpcAnimation(game *game, npcs []player) {
+	for i := 0; i < len(npcs); i++ {
+		npcs[i].pframeDelay += 1
+		if npcs[i].pframeDelay%6 == 0 {
+			npcs[i].pframe += 1
+			if npcs[i].pframe >= NPC_FRAMES_PER_SHEET {
+				npcs[i].pframe = 0
+
+			}
+		}
+	}
+}
 
 func killEnemy(game *game, npcs []player, iterator int) {
 	if npcs[iterator].chosen == true {
