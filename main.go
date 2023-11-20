@@ -220,13 +220,13 @@ func main() {
 	regNpcs = make([]player, numberOfRegNpcs)
 	for i := range regNpcs {
 		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-		regNpcs[i] = player{spriteSheet: animationOldMan, xLoc: x, yLoc: y}
+		regNpcs[i] = player{spriteSheet: animationOldMan, xLoc: x, yLoc: y, typing: "reg"}
 	}
 
 	shootNpcs = make([]player, numberOfShootNpcs)
 	for i := range shootNpcs {
 		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-		shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y}
+		shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y, typing: "shoot"}
 	}
 	myPlayer := player{spriteSheet: animationGuy, xLoc: WINDOW_WIDTH / 2, yLoc: 300}
 	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
