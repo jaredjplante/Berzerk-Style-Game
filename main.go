@@ -106,18 +106,31 @@ func (game *game) Update() error {
 	checkEnemyCollisions(game, game.regnpc)
 	checkShotCollisions(game, game.playershots)
 	checkShotCollisions(game, game.enemyshots)
+	checkChosen(game)
+	headToPlayer(game)
 
 	game.mainplayer.pframeDelay += 1
 	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
 	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && X > 0 {
-		X -= 5
+		game.mainplayer.xLoc -= 1
+		if checkPlayerCollisions(game) {
+			game.mainplayer.xLoc += 3
+		}
 	} else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) && X < WINDOW_WIDTH-PLAYERS_WIDTH {
-		X += 5
-	}
-	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) && Y > 0 {
-		Y -= 5
+		game.mainplayer.xLoc += 1
+		if checkPlayerCollisions(game) {
+			game.mainplayer.xLoc -= 3
+		}
+	} else if ebiten.IsKeyPressed(ebiten.KeyArrowUp) && Y > 0 {
+		game.mainplayer.yLoc -= 1
+		if checkPlayerCollisions(game) {
+			game.mainplayer.yLoc += 3
+		}
 	} else if ebiten.IsKeyPressed(ebiten.KeyArrowDown) && Y < WINDOW_HEIGHT-PLAYERS_HEIGHT {
-		Y += 5
+		game.mainplayer.yLoc += 1
+		if checkPlayerCollisions(game) {
+			game.mainplayer.yLoc -= 3
+		}
 	}
 
 	if game.mainplayer.pframeDelay%FRAMES_COUNT == 0 {
@@ -127,8 +140,6 @@ func (game *game) Update() error {
 
 		}
 	}
-	checkChosen(game)
-	headToPlayer(game)
 
 	return nil
 }
@@ -217,9 +228,9 @@ func main() {
 		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
 		shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y}
 	}
-	myPlayer := player{spriteSheet: animationGuy, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}
+	myPlayer := player{spriteSheet: animationGuy, xLoc: WINDOW_WIDTH / 2, yLoc: 300}
 	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
-	searchablePathMap.SetWalkable('4', false)
+	searchablePathMap.SetWalkable('3', false)
 	ebiten.SetWindowSize(gameMap.TileWidth*gameMap.Width, gameMap.TileHeight*gameMap.Height)
 	ebiten.SetWindowTitle("Jared Plante and Ronaldo Auguste Project 3")
 	ebitenImageMap := makeEbitenImagesFromMap(*gameMap)
@@ -232,6 +243,7 @@ func main() {
 		pathFindingMap: pathMap,
 		pathMap:        searchablePathMap,
 	}
+	createBoundSlice(&game)
 	err := ebiten.RunGame(&game)
 	if err != nil {
 		fmt.Println("Couldn't run game:", err)
@@ -314,8 +326,8 @@ func getShooterBounds(game *game, iterator int) collision.BoundingBox {
 	shooterBounds := collision.BoundingBox{
 		X:      float64(game.shootnpc[iterator].xLoc),
 		Y:      float64(game.shootnpc[iterator].yLoc),
-		Width:  float64(PLAYERS_WIDTH),
-		Height: float64(PLAYERS_HEIGHT),
+		Width:  float64(NPC1_WIDTH),
+		Height: float64(NPC1_HEIGHT),
 	}
 	return shooterBounds
 }
@@ -324,8 +336,8 @@ func getRegBounds(game *game, iterator int) collision.BoundingBox {
 	regBounds := collision.BoundingBox{
 		X:      float64(game.regnpc[iterator].xLoc),
 		Y:      float64(game.regnpc[iterator].yLoc),
-		Width:  float64(PLAYERS_WIDTH),
-		Height: float64(PLAYERS_HEIGHT),
+		Width:  float64(NPC1_WIDTH),
+		Height: float64(NPC1_HEIGHT),
 	}
 	return regBounds
 }
@@ -526,6 +538,25 @@ func DrawCenteredText(screen *ebiten.Image, s string, cx, cy int, game *game) { 
 }
 
 //maps
+
+func createBoundSlice(game *game) {
+	for tileY := 0; tileY < game.curMap.Height; tileY += 1 {
+		for tileX := 0; tileX < game.curMap.Width; tileX += 1 {
+			TileXpos := float64(game.curMap.TileWidth * tileX)
+			TileYpos := float64(game.curMap.TileHeight * tileY)
+			tileToDraw := game.curMap.Layers[0].Tiles[tileY*game.curMap.Width+tileX]
+			if tileToDraw.ID == 3 {
+				newBoundTile := boundaries{
+					boundTileX:  float64(TileXpos),
+					boundTileY:  float64(TileYpos),
+					boundWidth:  float64(game.curMap.TileWidth),
+					boundHeight: float64(game.curMap.TileHeight),
+				}
+				game.boundTiles = append(game.boundTiles, newBoundTile)
+			}
+		}
+	}
+}
 
 func makeSearchMap(tiledMap *tiled.Map) []string {
 	mapAsStringSlice := make([]string, 0, tiledMap.Height) //each row will be its own string
