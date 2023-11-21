@@ -11,6 +11,7 @@ import (
 	"github.com/solarlune/paths"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
+	"math"
 
 	"image"
 
@@ -144,7 +145,8 @@ func (game *game) Update() error {
 
 		}
 	}
-
+	walkPath(game, game.regnpc)
+	walkPath(game, game.shootnpc)
 	return nil
 }
 
@@ -335,6 +337,43 @@ func headToPlayer(game *game) {
 			startCell := game.pathMap.Get(startCol, startRow)
 			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
 			game.path = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
+			walkPath(game, game.shootnpc)
+		}
+	}
+	for i := 0; i < len(game.regnpc); i++ {
+		if game.regnpc[i].chosen {
+			startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
+			startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
+			startCell := game.pathMap.Get(startCol, startRow)
+			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+			game.path = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
+			walkPath(game, game.regnpc)
+		}
+	}
+}
+
+func walkPath(game *game, npc []player) {
+	for i := 0; i < len(npc); i++ {
+		if game.path != nil && npc[i].chosen {
+			pathCell := game.path.Current()
+			if math.Abs(float64(pathCell.X*game.curMap.TileWidth)-float64(npc[i].xLoc)) <= 2 &&
+				math.Abs(float64(pathCell.Y*game.curMap.TileHeight)-float64(npc[i].yLoc)) <= 2 { //if we are now on the tile we need to be on
+				game.path.Advance()
+			}
+			direction := 0.0
+			if pathCell.X*game.curMap.TileWidth > int(npc[i].xLoc) {
+				direction = 1.0
+			} else if pathCell.X*game.curMap.TileWidth < int(npc[i].xLoc) {
+				direction = -1.0
+			}
+			Ydirection := 0.0
+			if pathCell.Y*game.curMap.TileHeight > int(npc[i].yLoc) {
+				Ydirection = 1.0
+			} else if pathCell.Y*game.curMap.TileHeight < int(npc[i].yLoc) {
+				Ydirection = -1.0
+			}
+			npc[i].xLoc += int(direction)
+			npc[i].yLoc += int(Ydirection)
 		}
 	}
 }
