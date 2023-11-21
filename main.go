@@ -89,11 +89,13 @@ type boundaries struct {
 }
 
 type Shot struct {
-	pict   *ebiten.Image
-	xShot  int
-	yShot  int
-	deltaX int
-	typing string
+	pict      *ebiten.Image
+	xShot     float64
+	yShot     float64
+	deltaX    int
+	typing    string
+	direction int
+	speed     float64
 }
 
 type obj struct {
@@ -143,6 +145,24 @@ func (game *game) Update() error {
 		if game.mainplayer.pframe >= FRAMES_PER_SHEET {
 			game.mainplayer.pframe = 0
 
+		}
+		for i := range game.playershots {
+			switch game.playershots[i].direction {
+			case UP:
+				game.playershots[i].yShot -= game.playershots[i].speed
+			case DOWN:
+				game.playershots[i].yShot += game.playershots[i].speed
+			case LEFT:
+				game.playershots[i].xShot -= game.playershots[i].speed
+			case RIGHT:
+				game.playershots[i].xShot += game.playershots[i].speed
+			}
+			if game.playershots[i].xShot < 0 || game.playershots[i].xShot > WINDOW_WIDTH ||
+				game.playershots[i].yShot < 0 || game.playershots[i].yShot > WINDOW_HEIGHT {
+				// Remove shot
+				game.playershots = append(game.playershots[:i], game.playershots[i+1:]...)
+				i-- // Adjust index after removal
+			}
 		}
 	}
 	walkPath(game, game.regnpc)
@@ -199,6 +219,11 @@ func (game *game) Draw(screen *ebiten.Image) {
 		DrawCenteredText(screen, "Game Over", WINDOW_WIDTH/2, WINDOW_HEIGHT/2, game)
 		return
 	}
+	for _, shot := range game.playershots {
+		drawOptions := ebiten.DrawImageOptions{}
+		drawOptions.GeoM.Translate(shot.xShot, shot.yShot)
+		screen.DrawImage(shot.pict, &drawOptions)
+	}
 
 	//draw text
 	DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), 100, 12, game)
@@ -240,7 +265,7 @@ func main() {
 		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
 		shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y, typing: "shoot"}
 	}
-	myPlayer := player{spriteSheet: animationGuy, xLoc: WINDOW_WIDTH / 2, yLoc: 300, health: 3}
+	myPlayer := player{spriteSheet: animationGuy, xLoc: 100, yLoc: 100, health: 3}
 	fmt.Printf("Initial Player Health: %d\n", myPlayer.health)
 	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
 	searchablePathMap.SetWalkable('3', false)
@@ -704,5 +729,15 @@ func getPlayerInput(game *game) {
 		game.mainplayer.yLoc += 5
 		game.mainplayer.direction = DOWN
 	}
-
+	if ebiten.IsKeyPressed(ebiten.KeySpace) {
+		shotImg := LoadEmbeddedImage("", "projectile.png")
+		projectile := Shot{
+			pict:      shotImg,
+			xShot:     float64(game.mainplayer.xLoc),
+			yShot:     float64(game.mainplayer.yLoc),
+			direction: game.mainplayer.direction,
+			speed:     5, // set the speed of the projectile
+		}
+		game.playershots = append(game.playershots, projectile)
+	}
 }
