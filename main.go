@@ -11,6 +11,7 @@ import (
 	"github.com/solarlune/paths"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
+	"math"
 
 	"image"
 
@@ -29,16 +30,17 @@ import (
 var EmbeddedAssets embed.FS
 
 const (
-	WINDOW_WIDTH      = 1000
-	WINDOW_HEIGHT     = 1000
-	PLAYERS_HEIGHT    = 64
-	PLAYERS_WIDTH     = 64
-	NPC1_HEIGHT       = 112
-	NPC1_WIDTH        = 100
-	FRAMES_PER_SHEET  = 8
-	FRAMES_COUNT      = 4
-	numberOfShootNpcs = 4
-	numberOfRegNpcs   = 3
+	WINDOW_WIDTH         = 1000
+	WINDOW_HEIGHT        = 1000
+	PLAYERS_HEIGHT       = 64
+	PLAYERS_WIDTH        = 64
+	NPC1_HEIGHT          = 72
+	NPC1_WIDTH           = 64
+	FRAMES_PER_SHEET     = 8
+	NPC_FRAMES_PER_SHEET = 3
+	FRAMES_COUNT         = 4
+	numberOfShootNpcs    = 4
+	numberOfRegNpcs      = 3
 )
 const (
 	UP = iota
@@ -111,6 +113,8 @@ func (game *game) Update() error {
 	checkShotCollisions(game, game.enemyshots)
 	checkChosen(game)
 	headToPlayer(game)
+	NpcAnimation(game, game.shootnpc)
+	NpcAnimation(game, game.regnpc)
 
 	game.mainplayer.pframeDelay += 1
 	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
@@ -161,7 +165,8 @@ func (game *game) Update() error {
 			}
 		}
 	}
-
+	walkPath(game, game.regnpc)
+	walkPath(game, game.shootnpc)
 	return nil
 }
 
@@ -286,6 +291,19 @@ func main() {
 
 // util funcs
 
+func NpcAnimation(game *game, npcs []player) {
+	for i := 0; i < len(npcs); i++ {
+		npcs[i].pframeDelay += 1
+		if npcs[i].pframeDelay%6 == 0 {
+			npcs[i].pframe += 1
+			if npcs[i].pframe >= NPC_FRAMES_PER_SHEET {
+				npcs[i].pframe = 0
+
+			}
+		}
+	}
+}
+
 func killEnemy(game *game, npcs []player, iterator int) {
 	if npcs[iterator].chosen == true {
 		game.chosenNum -= 1
@@ -344,6 +362,43 @@ func headToPlayer(game *game) {
 			startCell := game.pathMap.Get(startCol, startRow)
 			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
 			game.path = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
+			walkPath(game, game.shootnpc)
+		}
+	}
+	for i := 0; i < len(game.regnpc); i++ {
+		if game.regnpc[i].chosen {
+			startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
+			startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
+			startCell := game.pathMap.Get(startCol, startRow)
+			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+			game.path = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
+			walkPath(game, game.regnpc)
+		}
+	}
+}
+
+func walkPath(game *game, npc []player) {
+	for i := 0; i < len(npc); i++ {
+		if game.path != nil && npc[i].chosen {
+			pathCell := game.path.Current()
+			if math.Abs(float64(pathCell.X*game.curMap.TileWidth)-float64(npc[i].xLoc)) <= 2 &&
+				math.Abs(float64(pathCell.Y*game.curMap.TileHeight)-float64(npc[i].yLoc)) <= 2 { //if we are now on the tile we need to be on
+				game.path.Advance()
+			}
+			direction := 0.0
+			if pathCell.X*game.curMap.TileWidth > int(npc[i].xLoc) {
+				direction = 1.0
+			} else if pathCell.X*game.curMap.TileWidth < int(npc[i].xLoc) {
+				direction = -1.0
+			}
+			Ydirection := 0.0
+			if pathCell.Y*game.curMap.TileHeight > int(npc[i].yLoc) {
+				Ydirection = 1.0
+			} else if pathCell.Y*game.curMap.TileHeight < int(npc[i].yLoc) {
+				Ydirection = -1.0
+			}
+			npc[i].xLoc += int(direction)
+			npc[i].yLoc += int(Ydirection)
 		}
 	}
 }
