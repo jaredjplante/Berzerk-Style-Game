@@ -6,21 +6,21 @@ import (
 	"github.com/co0p/tankism/lib/collision"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/lafriks/go-tiled"
 	"github.com/solarlune/paths"
 	"golang.org/x/image/colornames"
 	"golang.org/x/image/font/basicfont"
-	"math"
-
 	"image"
+	"log"
+	"math"
+	"strings"
 
 	"math/rand"
-	"strings"
 	"time"
 
 	_ "image"
-	"log"
 	_ "math/rand"
 	"path"
 	_ "time"
@@ -37,8 +37,8 @@ const (
 	NPC1_HEIGHT          = 72
 	NPC1_WIDTH           = 64
 	FRAMES_PER_SHEET     = 8
-	NPC_FRAMES_PER_SHEET = 3
 	FRAMES_COUNT         = 4
+	NPC_FRAMES_PER_SHEET = 3
 	numberOfShootNpcs    = 4
 	numberOfRegNpcs      = 3
 )
@@ -47,6 +47,12 @@ const (
 	LEFT
 	DOWN
 	RIGHT
+)
+const (
+	OLDUP = iota
+	OLDRIGHT
+	OLDDOWN
+	OLDLEFT
 )
 
 type game struct {
@@ -159,10 +165,20 @@ func (game *game) Update() error {
 			}
 			if game.playershots[i].xShot < 0 || game.playershots[i].xShot > WINDOW_WIDTH ||
 				game.playershots[i].yShot < 0 || game.playershots[i].yShot > WINDOW_HEIGHT {
-				// Remove shot
+
 				game.playershots = append(game.playershots[:i], game.playershots[i+1:]...)
-				i-- // Adjust index after removal
+				i--
 			}
+			if game.mainplayer.xLoc == 100 && game.mainplayer.yLoc == 100 {
+				// Transition to the next map
+				game.loadNextMap()
+				//if len(game.shootnpc) == 0 && len(game.regnpc) == 0 {
+				// Check if player is in the transition area
+
+			}
+		}
+		if inpututil.IsKeyJustPressed(ebiten.KeyT) {
+			game.loadNextMap()
 		}
 	}
 	walkPath(game, game.regnpc)
@@ -254,10 +270,24 @@ func main() {
 		return x, y
 	}
 
-	regNpcs = make([]player, numberOfRegNpcs)
-	for i := range regNpcs {
+	regNpcs = make([]player, 0, numberOfRegNpcs)
+
+	// oldman NPC
+	for i := 0; i < numberOfRegNpcs/3; i++ {
 		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-		regNpcs[i] = player{spriteSheet: animationOldMan, xLoc: x, yLoc: y, typing: "reg"}
+		regNpcs = append(regNpcs, player{spriteSheet: animationOldMan, xLoc: x, yLoc: y, typing: "reg"})
+	}
+
+	// warrior NPC
+	for i := 0; i < numberOfRegNpcs/3; i++ {
+		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		regNpcs = append(regNpcs, player{spriteSheet: animationWarrior, xLoc: x, yLoc: y, typing: "reg"})
+	}
+
+	// oldlady NPC
+	for i := 0; i < numberOfRegNpcs/3; i++ {
+		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		regNpcs = append(regNpcs, player{spriteSheet: animationOldLady, xLoc: x, yLoc: y, typing: "reg"})
 	}
 
 	shootNpcs = make([]player, numberOfShootNpcs)
@@ -265,7 +295,8 @@ func main() {
 		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
 		shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y, typing: "shoot"}
 	}
-	myPlayer := player{spriteSheet: animationGuy, xLoc: 100, yLoc: 100, health: 3}
+	myPlayer := player{spriteSheet: animationGuy, xLoc: 100, yLoc: 600, health: 3}
+
 	fmt.Printf("Initial Player Health: %d\n", myPlayer.health)
 	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
 	searchablePathMap.SetWalkable('3', false)
@@ -273,9 +304,10 @@ func main() {
 	ebiten.SetWindowTitle("Jared Plante and Ronaldo Auguste Project 3")
 	ebitenImageMap := makeEbitenImagesFromMap(*gameMap)
 	game := game{
-		curMap:         gameMap,
-		tileDict:       ebitenImageMap,
-		mainplayer:     myPlayer,
+		curMap:     gameMap,
+		tileDict:   ebitenImageMap,
+		mainplayer: myPlayer,
+
 		regnpc:         regNpcs,
 		shootnpc:       shootNpcs,
 		pathFindingMap: pathMap,
@@ -294,12 +326,21 @@ func main() {
 func NpcAnimation(game *game, npcs []player) {
 	for i := 0; i < len(npcs); i++ {
 		npcs[i].pframeDelay += 1
-		if npcs[i].pframeDelay%6 == 0 {
+		if npcs[i].pframeDelay%10 == 0 {
 			npcs[i].pframe += 1
 			if npcs[i].pframe >= NPC_FRAMES_PER_SHEET {
 				npcs[i].pframe = 0
-
 			}
+			if npcs[i].direction == OLDLEFT {
+				npcs[i].xLoc -= 5
+			} else if npcs[i].direction == OLDRIGHT {
+				npcs[i].xLoc += 5
+			} else if npcs[i].direction == OLDUP {
+				npcs[i].yLoc -= 5
+			} else if npcs[i].direction == OLDDOWN {
+				npcs[i].yLoc += 5
+			}
+
 		}
 	}
 }
@@ -729,7 +770,7 @@ func getPlayerInput(game *game) {
 		game.mainplayer.yLoc += 5
 		game.mainplayer.direction = DOWN
 	}
-	if ebiten.IsKeyPressed(ebiten.KeySpace) {
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		shotImg := LoadEmbeddedImage("", "projectile.png")
 		projectile := Shot{
 			pict:      shotImg,
@@ -740,4 +781,16 @@ func getPlayerInput(game *game) {
 		}
 		game.playershots = append(game.playershots, projectile)
 	}
+}
+func (game *game) loadNextMap() {
+	fmt.Println("Attempting to load next map...")
+	// load the map and check for errors
+	newMap := loadMapFromEmbedded(path.Join("assets", "map2.tmx"))
+	if newMap == nil {
+		fmt.Println("Failed to load map2.tmx")
+		return
+	}
+	game.curMap = newMap
+	fmt.Println("Map transitioned to map2.tmx")
+	// ...
 }
