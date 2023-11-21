@@ -6,6 +6,7 @@ import (
 	"github.com/co0p/tankism/lib/collision"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/lafriks/go-tiled"
 	"github.com/solarlune/paths"
@@ -60,6 +61,8 @@ type game struct {
 	pathFindingMap []string
 	pathMap        *paths.Grid
 	path           *paths.Path
+	pathMap2       *paths.Grid
+	path2          *paths.Path
 	playershots    []Shot
 	enemyshots     []Shot
 	spawnrate      int
@@ -107,14 +110,17 @@ type obj struct {
 func (game *game) Update() error {
 	getPlayerInput(game)
 	checkPlayerCollisions(game)
-	checkEnemyCollisions(game, game.shootnpc)
-	checkEnemyCollisions(game, game.regnpc)
-	checkShotCollisions(game, game.playershots)
-	checkShotCollisions(game, game.enemyshots)
+	game.shootnpc = checkEnemyCollisions(game, game.shootnpc)
+	game.regnpc = checkEnemyCollisions(game, game.regnpc)
+	game.playershots = checkShotCollisions(game, game.playershots)
+	game.enemyshots = checkShotCollisions(game, game.enemyshots)
 	checkChosen(game)
 	headToPlayer(game)
+	//walkPath(game, game.shootnpc, game.path)
+	//walkPath(game, game.regnpc, game.path2)
 	NpcAnimation(game, game.shootnpc)
 	NpcAnimation(game, game.regnpc)
+	print(game.chosenNum)
 
 	game.mainplayer.pframeDelay += 1
 	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
@@ -165,8 +171,8 @@ func (game *game) Update() error {
 			}
 		}
 	}
-	walkPath(game, game.regnpc)
-	walkPath(game, game.shootnpc)
+	walkPath(game, game.shootnpc, game.path)
+	walkPath(game, game.regnpc, game.path2)
 	return nil
 }
 
@@ -280,6 +286,7 @@ func main() {
 		shootnpc:       shootNpcs,
 		pathFindingMap: pathMap,
 		pathMap:        searchablePathMap,
+		pathMap2:       searchablePathMap,
 	}
 	createBoundSlice(&game)
 	err := ebiten.RunGame(&game)
@@ -304,19 +311,19 @@ func NpcAnimation(game *game, npcs []player) {
 	}
 }
 
-func killEnemy(game *game, npcs []player, iterator int) {
+func killEnemy(game *game, npcs []player, iterator int) []player {
 	if npcs[iterator].chosen == true {
 		game.chosenNum -= 1
 	}
 	//shift elements to remove enemies
 	npcs = append(npcs[:iterator], npcs[iterator+1:]...)
-	iterator--
+	return npcs
 }
 
-func killShots(game *game, shots []Shot, iterator int) {
+func killShots(game *game, shots []Shot, iterator int) []Shot {
 	//shift elements to remove projectiles
 	shots = append(shots[:iterator], shots[iterator+1:]...)
-	iterator--
+	return shots
 }
 
 func playerLifeLoss(game *game) {
@@ -339,7 +346,7 @@ func handleDeath(game *game) {
 //ai
 
 func checkChosen(game *game) {
-	if game.chosenNum == 0 {
+	if game.chosenNum <= 0 {
 		curShoot := len(game.shootnpc)
 		curReg := len(game.regnpc)
 		if curShoot != 0 {
@@ -362,28 +369,32 @@ func headToPlayer(game *game) {
 			startCell := game.pathMap.Get(startCol, startRow)
 			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
 			game.path = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
-			walkPath(game, game.shootnpc)
 		}
 	}
 	for i := 0; i < len(game.regnpc); i++ {
 		if game.regnpc[i].chosen {
 			startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
 			startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
-			startCell := game.pathMap.Get(startCol, startRow)
-			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
-			game.path = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
-			walkPath(game, game.regnpc)
+			startCell := game.pathMap2.Get(startCol, startRow)
+			endCell := game.pathMap2.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+			game.path2 = game.pathMap2.GetPathFromCells(startCell, endCell, false, false)
 		}
 	}
 }
 
-func walkPath(game *game, npc []player) {
+func walkPath(game *game, npc []player, path *paths.Path) {
 	for i := 0; i < len(npc); i++ {
-		if game.path != nil && npc[i].chosen {
-			pathCell := game.path.Current()
+		if path != nil && npc[i].chosen {
+			pathCell := path.Current()
 			if math.Abs(float64(pathCell.X*game.curMap.TileWidth)-float64(npc[i].xLoc)) <= 2 &&
 				math.Abs(float64(pathCell.Y*game.curMap.TileHeight)-float64(npc[i].yLoc)) <= 2 { //if we are now on the tile we need to be on
-				game.path.Advance()
+				path.Advance()
+			}
+			if path.AtEnd() {
+				path = nil
+				npc[i].chosen = false
+				game.chosenNum -= 1
+				return
 			}
 			direction := 0.0
 			if pathCell.X*game.curMap.TileWidth > int(npc[i].xLoc) {
@@ -397,8 +408,8 @@ func walkPath(game *game, npc []player) {
 			} else if pathCell.Y*game.curMap.TileHeight < int(npc[i].yLoc) {
 				Ydirection = -1.0
 			}
-			npc[i].xLoc += int(direction)
-			npc[i].yLoc += int(Ydirection)
+			npc[i].xLoc += int(direction) * 2
+			npc[i].yLoc += int(Ydirection) * 2
 		}
 	}
 }
@@ -518,7 +529,8 @@ func checkPlayerCollisions(game *game) bool {
 }
 
 // enemy dies if true (for both regular and shooting enemies)
-func checkEnemyCollisions(game *game, npcs []player) bool {
+func checkEnemyCollisions(game *game, npcs []player) []player {
+	enemyBool := false
 	for j := 0; j < len(npcs); j++ {
 		enemyBounds := collision.BoundingBox{}
 		if npcs[j].typing == "shoot" {
@@ -531,9 +543,8 @@ func checkEnemyCollisions(game *game, npcs []player) bool {
 			if j != i || npcs[j].typing != "shoot" {
 				shooterBounds := getShooterBounds(game, i)
 				if collision.AABBCollision(enemyBounds, shooterBounds) {
-					killEnemy(game, npcs, j)
-					killEnemy(game, game.shootnpc, i)
-					return true
+					game.shootnpc = killEnemy(game, game.shootnpc, i)
+					enemyBool = true
 				}
 			}
 		}
@@ -542,9 +553,8 @@ func checkEnemyCollisions(game *game, npcs []player) bool {
 			if j != i || npcs[j].typing != "reg" {
 				regBounds := getRegBounds(game, i)
 				if collision.AABBCollision(enemyBounds, regBounds) {
-					killEnemy(game, npcs, j)
-					killEnemy(game, game.regnpc, i)
-					return true
+					game.regnpc = killEnemy(game, game.regnpc, i)
+					enemyBool = true
 				}
 			}
 		}
@@ -552,31 +562,33 @@ func checkEnemyCollisions(game *game, npcs []player) bool {
 			playerShotsBounds := getPlayerShotBounds(game, i)
 			if collision.AABBCollision(enemyBounds, playerShotsBounds) {
 				game.score += 1
-				killEnemy(game, npcs, j)
-				killShots(game, game.playershots, i)
-				return true
+				game.playershots = killShots(game, game.playershots, i)
+				enemyBool = true
 			}
 		}
 		for i := 0; i < len(game.fires); i++ {
 			fireBounds := getFireBounds(game, i)
 			if collision.AABBCollision(enemyBounds, fireBounds) {
-				killEnemy(game, npcs, j)
-				return true
+				enemyBool = true
 			}
 		}
 		for i := 0; i < len(game.boundTiles); i++ {
 			tileBounds := getTileBounds(game, i)
 			if collision.AABBCollision(enemyBounds, tileBounds) {
-				killEnemy(game, npcs, j)
-				return true
+				enemyBool = true
 			}
 		}
+		if enemyBool {
+			npcs = killEnemy(game, npcs, j)
+			enemyBool = false
+		}
 	}
-	return false
+	return npcs
 }
 
 // shots don't go through boundaries (for both player and enemy shots)
-func checkShotCollisions(game *game, shots []Shot) bool {
+func checkShotCollisions(game *game, shots []Shot) []Shot {
+	shotHit := false
 	for j := 0; j < len(shots); j++ {
 		shotBounds := collision.BoundingBox{}
 		if shots[j].typing == "player" {
@@ -586,35 +598,36 @@ func checkShotCollisions(game *game, shots []Shot) bool {
 		}
 		for i := 0; i < len(game.playershots); i++ {
 			// make sure shot does not collide with itself
-			if j != i {
+			if j != i && shots[j].typing == "npc" {
 				playerShotBounds := getPlayerShotBounds(game, i)
 				if collision.AABBCollision(shotBounds, playerShotBounds) {
-					killShots(game, shots, j)
-					killShots(game, game.playershots, i)
-					return true
+					game.playershots = killShots(game, game.playershots, i)
+					shotHit = true
 				}
 			}
 		}
 		for i := 0; i < len(game.enemyshots); i++ {
 			// make sure shot does not collide with itself
-			if j != i {
+			if j != i && shots[j].typing == "player" {
 				enemyShotBounds := getEnemyShotBounds(game, i)
 				if collision.AABBCollision(shotBounds, enemyShotBounds) {
-					killShots(game, shots, j)
-					killShots(game, game.enemyshots, i)
-					return true
+					game.enemyshots = killShots(game, game.enemyshots, i)
+					shotHit = true
 				}
 			}
 		}
 		for i := 0; i < len(game.boundTiles); i++ {
 			tileBounds := getTileBounds(game, i)
 			if collision.AABBCollision(shotBounds, tileBounds) {
-				killShots(game, shots, j)
-				return true
+				shotHit = true
 			}
 		}
+		if shotHit {
+			shots = killShots(game, shots, j)
+			return shots
+		}
 	}
-	return false
+	return shots
 }
 
 //text
@@ -729,13 +742,14 @@ func getPlayerInput(game *game) {
 		game.mainplayer.yLoc += 5
 		game.mainplayer.direction = DOWN
 	}
-	if ebiten.IsKeyPressed(ebiten.KeySpace) {
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		shotImg := LoadEmbeddedImage("", "projectile.png")
 		projectile := Shot{
 			pict:      shotImg,
 			xShot:     float64(game.mainplayer.xLoc),
 			yShot:     float64(game.mainplayer.yLoc),
 			direction: game.mainplayer.direction,
+			typing:    "player",
 			speed:     5, // set the speed of the projectile
 		}
 		game.playershots = append(game.playershots, projectile)
