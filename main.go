@@ -245,6 +245,7 @@ func (game *game) Draw(screen *ebiten.Image) {
 	}
 	if game.win {
 		DrawWinScreen(screen, game)
+		ebiten.SetMaxTPS(0)
 		return
 	}
 	for _, shot := range game.playershots {
@@ -401,6 +402,7 @@ func playerLifeLoss(game *game) {
 // maybe add in healthbar?
 func handleDeath(game *game) {
 	game.gameOver = true
+	ebiten.SetMaxTPS(0)
 }
 
 //ai
