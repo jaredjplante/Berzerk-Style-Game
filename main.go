@@ -275,30 +275,6 @@ func main() {
 	}
 
 	regNpcs = make([]player, 0, numberOfRegNpcs)
-
-	//// oldman NPC
-	//for i := 0; i < numberOfRegNpcs/3; i++ {
-	//	x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-	//	regNpcs = append(regNpcs, player{spriteSheet: animationOldMan, xLoc: x, yLoc: y, typing: "reg"})
-	//}
-	//
-	//// warrior NPC
-	//for i := 0; i < numberOfRegNpcs/3; i++ {
-	//	x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-	//	regNpcs = append(regNpcs, player{spriteSheet: animationWarrior, xLoc: x, yLoc: y, typing: "reg"})
-	//}
-	//
-	//// oldlady NPC
-	//for i := 0; i < numberOfRegNpcs/3; i++ {
-	//	x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-	//	regNpcs = append(regNpcs, player{spriteSheet: animationOldLady, xLoc: x, yLoc: y, typing: "reg"})
-	//}
-	//
-	//shootNpcs = make([]player, numberOfShootNpcs)
-	//for i := range shootNpcs {
-	//	x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-	//	shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y, typing: "shoot"}
-	//}
 	myPlayer := player{spriteSheet: animationGuy, xLoc: 100, yLoc: 100, health: 3}
 
 	fmt.Printf("Initial Player Health: %d\n", myPlayer.health)
