@@ -175,15 +175,7 @@ func (game *game) Update() error {
 			case RIGHT:
 				game.playershots[i].xShot += game.playershots[i].speed
 			}
-			//if game.playershots[i].xShot < 0 || game.playershots[i].xShot > WINDOW_WIDTH ||
-			//	game.playershots[i].yShot < 0 || game.playershots[i].yShot > WINDOW_HEIGHT {
-			//
-			//	game.playershots = append(game.playershots[:i], game.playershots[i+1:]...)
-			//	i--
-			//
-			//}
 		}
-
 	}
 	walkPath(game, game.shootnpc, game.path)
 	walkPath(game, game.regnpc, game.path2)
