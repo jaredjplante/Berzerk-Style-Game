@@ -122,7 +122,7 @@ func (game *game) Update() error {
 	game.enemyshots = checkShotCollisions(game, game.enemyshots)
 	checkChosen(game)
 	headToPlayer(game)
-	//game.checkMapTransition()
+	game.checkMapTransition()
 	//walkPath(game, game.shootnpc, game.path)
 	//walkPath(game, game.regnpc, game.path2)
 	NpcAnimation(game, game.shootnpc)
@@ -175,19 +175,13 @@ func (game *game) Update() error {
 
 				game.playershots = append(game.playershots[:i], game.playershots[i+1:]...)
 				i--
-			}
-			if game.mainplayer.xLoc == 100 && game.mainplayer.yLoc == 100 {
-				// Transition to the next map
-				//game.loadNextMap()
 
-			}
-			if len(game.shootnpc) == 0 && len(game.regnpc) == 0 {
-				//game.loadNextMap()
 			}
 
 		}
 		if inpututil.IsKeyJustPressed(ebiten.KeyT) {
-			//game.loadNextMap()
+			game.loadNextMap()
+
 		}
 	}
 	walkPath(game, game.shootnpc, game.path)
@@ -266,12 +260,12 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	regNpcs := []player{
-		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2},  // NPC1
-		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC2
-		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC3
+		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"},  // NPC1
+		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"}, // NPC2
+		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"}, // NPC3
 	}
 	shootNpcs := []player{
-		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC4
+		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "shoot"}, // NPC4
 	}
 
 	regNpcs = make([]player, 0, numberOfRegNpcs)
@@ -284,10 +278,10 @@ func main() {
 	ebiten.SetWindowTitle("Jared Plante and Ronaldo Auguste Project 3")
 	ebitenImageMap := makeEbitenImagesFromMap(*gameMap)
 	game := game{
-		curMap:     gameMap,
-		tileDict:   ebitenImageMap,
-		mainplayer: myPlayer,
-
+		curMap:         gameMap,
+		tileDict:       ebitenImageMap,
+		mainplayer:     myPlayer,
+		currMapnumber:  1,
 		regnpc:         regNpcs,
 		shootnpc:       shootNpcs,
 		pathFindingMap: pathMap,
@@ -771,62 +765,77 @@ func getPlayerInput(game *game) {
 			yShot:     float64(game.mainplayer.yLoc),
 			direction: game.mainplayer.direction,
 			typing:    "player",
-			speed:     10, // set the speed of the projectile
+			speed:     10, //  speed of the projectile
 		}
 		game.playershots = append(game.playershots, projectile)
 	}
 }
 
-//	func (game *game) loadNextMap() {
-//		fmt.Println("Attempting to load next map...")
-//		randomEnemy(game)
-//		game.mainplayer.xLoc = 100
-//		game.mainplayer.yLoc = 100
-//
-//		// Update tile collisions for the new map
-//		createBoundSlice(game)
-//		if game.currMapnumber == 3 {
-//			fmt.Println("No more maps to load.")
-//			return
-//		}
-//		// Increment the map number
-//		game.currMapnumber++
-//
-//		// Determine the next map to load based on the current map number
-//		var nextMapName string
-//		switch game.currMapnumber {
-//		case 2:
-//			nextMapName = "map2.tmx"
-//		case 3:
-//			nextMapName = "map3.tmx"
-//		default:
-//			fmt.Println("No more maps to load.")
-//			return
-//		}
-//
-//		// Load the map and check for errors
-//		newMap := loadMapFromEmbedded(path.Join("assets", nextMapName))
-//		if newMap == nil {
-//			fmt.Printf("Failed to load %s\n", nextMapName)
-//			return
-//		}
-//
-//		game.curMap = newMap
-//		fmt.Printf("Map transitioned to %s\n", nextMapName)
-//
-//		// Reset or initialize game state as needed
-//		// ...
-//	}
+// loads next map
+func (game *game) loadNextMap() {
+	fmt.Println("Attempting to load next map...")
+	//spawn player at certain location on the new map
+	game.mainplayer.xLoc = 100
+	game.mainplayer.yLoc = 100
+	game.playershots = []Shot{}
+	game.enemyshots = []Shot{}
+	// spawn enemies for the new map
+	randomEnemy(game)
+	// increment the map number and determine the next map
+	game.currMapnumber++
+	if game.currMapnumber > 3 {
+		fmt.Println("No more maps to load.")
+		//game.currMapnumber = 1 // incase we ever need to loop back to the first map
+	}
+
+	var nextMapName string
+	switch game.currMapnumber {
+	//case 1:
+	//	nextMapName = "map1.tmx" // incase we ever need to get back to map1
+	case 2:
+		nextMapName = "map2.tmx"
+	case 3:
+		nextMapName = "map3.tmx"
+	default:
+		fmt.Println("No more maps to load.")
+		return
+	}
+
+	// load the new map
+	newMap := loadMapFromEmbedded(path.Join("assets", nextMapName))
+	if newMap == nil {
+		fmt.Printf("Failed to load %s\n", nextMapName)
+		return
+	}
+	game.curMap = newMap
+
+	// update tileDict for the new map
+	game.tileDict = makeEbitenImagesFromMap(*newMap)
+
+	// clears and update boundTiles for the new map
+	game.boundTiles = []boundaries{} // clears existing boundaries for new map
+	createBoundSlice(game)           // create new boundaries for new map
+
+	fmt.Printf("Map transitioned to %s\n", nextMapName)
+}
+
 func randomEnemy(game *game) {
 	// clear existing NPCs
 	game.shootnpc = []player{}
 	game.regnpc = []player{}
+	if game.currMapnumber > 3 {
+		return
+	}
 
-	// generate new NPCs based on the current map
-	for i := 0; i < numberOfRegNpcs; i++ {
-		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+	//  number of enemies based on the current map number
+	numRegNpcs := game.currMapnumber + 2   // 2 npcs for map 1, 3 npcs  for map 2, 4 npcs for map 3
+	numShootNpcs := game.currMapnumber + 1 // same thing as regnpc
+
+	// generate new regular NPCs
+	for i := 0; i < numRegNpcs; i++ {
+		x, y := randomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
 		var npc player
-		switch i % 1 {
+		switch i % 3 {
 		case 0:
 			npc = player{spriteSheet: LoadEmbeddedImage("", "oldman.png"), xLoc: x, yLoc: y, typing: "reg"}
 		case 1:
@@ -837,22 +846,30 @@ func randomEnemy(game *game) {
 		game.regnpc = append(game.regnpc, npc)
 	}
 
-	for i := 0; i < numberOfShootNpcs; i++ {
-		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+	// generate new shooting NPCs
+	for i := 0; i < numShootNpcs; i++ {
+		x, y := randomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
 		npc := player{spriteSheet: LoadEmbeddedImage("", "shooter.png"), xLoc: x, yLoc: y, typing: "shoot"}
 		game.shootnpc = append(game.shootnpc, npc)
 	}
 }
 
-func getRandomPosition(maxWidth, maxHeight, npcWidth, npcHeight int) (int, int) {
+// spawns enemies in random positions
+func randomPosition(maxWidth, maxHeight, npcWidth, npcHeight int) (int, int) {
+	//logic for random npc spawning
 	x := rand.Intn(maxWidth - NPC1_WIDTH)
 	y := rand.Intn(maxHeight - NPC1_HEIGHT)
 	return x, y
 }
 
-//func (game *game) checkMapTransition() {
-//	// check specific conditions for transitioning to the next map
-//	if len(game.shootnpc) == 0 && len(game.regnpc) == 0 {
-//		game.loadNextMap()
-//	}
-//}
+// logic to check if game can move to next map
+func (game *game) checkMapTransition() {
+	//if no shoot and regnpcs are alive it will load the next map
+	if len(game.shootnpc) == 0 && len(game.regnpc) == 0 {
+		if game.currMapnumber < 3 {
+			// load the next map
+			game.loadNextMap()
+		} else {
+		}
+	}
+}
