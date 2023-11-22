@@ -130,28 +130,28 @@ func (game *game) Update() error {
 	print(game.chosenNum)
 
 	game.mainplayer.pframeDelay += 1
-	//X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
-	//if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && X > 0 {
-	//	game.mainplayer.xLoc -= 1
-	//	if checkPlayerCollisions(game) {
-	//		game.mainplayer.xLoc += 3
-	//	}
-	//} else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) && X < WINDOW_WIDTH-PLAYERS_WIDTH {
-	//	game.mainplayer.xLoc += 1
-	//	if checkPlayerCollisions(game) {
-	//		game.mainplayer.xLoc -= 3
-	//	}
-	//} else if ebiten.IsKeyPressed(ebiten.KeyArrowUp) && Y > 0 {
-	//	game.mainplayer.yLoc -= 1
-	//	if checkPlayerCollisions(game) {
-	//		game.mainplayer.yLoc += 3
-	//	}
-	//} else if ebiten.IsKeyPressed(ebiten.KeyArrowDown) && Y < WINDOW_HEIGHT-PLAYERS_HEIGHT {
-	//	game.mainplayer.yLoc += 1
-	//	if checkPlayerCollisions(game) {
-	//		game.mainplayer.yLoc -= 3
-	//	}
-	//}
+	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
+	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && X > 0 {
+		game.mainplayer.xLoc -= 1
+		if checkPlayerCollisions(game) {
+			game.mainplayer.xLoc += 3
+		}
+	} else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) && X < WINDOW_WIDTH-PLAYERS_WIDTH {
+		game.mainplayer.xLoc += 1
+		if checkPlayerCollisions(game) {
+			game.mainplayer.xLoc -= 3
+		}
+	} else if ebiten.IsKeyPressed(ebiten.KeyArrowUp) && Y > 0 {
+		game.mainplayer.yLoc -= 1
+		if checkPlayerCollisions(game) {
+			game.mainplayer.yLoc += 3
+		}
+	} else if ebiten.IsKeyPressed(ebiten.KeyArrowDown) && Y < WINDOW_HEIGHT-PLAYERS_HEIGHT {
+		game.mainplayer.yLoc += 1
+		if checkPlayerCollisions(game) {
+			game.mainplayer.yLoc -= 3
+		}
+	}
 
 	if game.mainplayer.pframeDelay%FRAMES_COUNT == 0 {
 		//game.mainplayer.pframe += 1
