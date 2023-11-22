@@ -11,13 +11,16 @@ import (
 	"github.com/lafriks/go-tiled"
 	"github.com/solarlune/paths"
 	"golang.org/x/image/colornames"
+	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
+	_ "golang.org/x/image/font/gofont/goregular"
+	_ "golang.org/x/image/font/opentype"
 	"image"
+	"image/color"
 	"log"
 	"math"
-	"strings"
-
 	"math/rand"
+	"strings"
 	"time"
 
 	_ "image"
@@ -76,6 +79,7 @@ type game struct {
 	chosenNum      int
 	gameOver       bool
 	currMapnumber  int
+	textFont       font.Face
 }
 
 type player struct {
@@ -234,7 +238,8 @@ func (game *game) Draw(screen *ebiten.Image) {
 	}
 	if game.gameOver {
 		// Display Game Over message
-		DrawCenteredText(screen, "Game Over", WINDOW_WIDTH/2, WINDOW_HEIGHT/2, game)
+		DrawLossScreen(screen, game)
+		DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), WINDOW_HEIGHT/2, WINDOW_WIDTH/4, game)
 		return
 	}
 	for _, shot := range game.playershots {
@@ -780,6 +785,7 @@ func LoadEmbeddedImage(folderName string, imageName string) *ebiten.Image {
 
 func getPlayerInput(game *game) {
 	if game.gameOver {
+		game.mainplayer.pframe += 0
 		game.mainplayer.xLoc += 0
 		game.mainplayer.yLoc += 0
 	}
@@ -916,4 +922,19 @@ func (game *game) mapTransition() {
 		} else {
 		}
 	}
+}
+
+// loss screen after game ends
+func DrawLossScreen(screen *ebiten.Image, game *game) {
+	//covers the entire screen with a black
+	screen.Fill(color.Black)
+
+	font := basicfont.Face7x13
+
+	loseText := "You Lose"
+
+	x := WINDOW_WIDTH / 2
+	y := WINDOW_HEIGHT / 2
+
+	text.Draw(screen, loseText, font, x, y, color.White)
 }
