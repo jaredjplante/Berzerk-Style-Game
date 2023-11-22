@@ -874,18 +874,19 @@ func getPlayerInput(game *game) {
 func (game *game) loadNextMap() {
 	fmt.Println("Attempting to load next map...")
 	//spawn player at certain location on the new map
+	// increment the map number and determine the next map
+	game.currMapnumber++
+	if game.currMapnumber > 2 {
+		fmt.Println("No more maps to load.")
+		game.win = true
+	}
+
 	game.mainplayer.xLoc = 100
 	game.mainplayer.yLoc = 100
 	game.playershots = []Shot{}
 	game.enemyshots = []Shot{}
 	// spawn enemies for the new map
 	randomEnemy(game)
-	// increment the map number and determine the next map
-	game.currMapnumber++
-	if game.currMapnumber > 3 {
-		fmt.Println("No more maps to load.")
-		//game.currMapnumber = 1 // incase we ever need to loop back to the first map
-	}
 
 	var nextMapName string
 	switch game.currMapnumber {
