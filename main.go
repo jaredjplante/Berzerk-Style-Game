@@ -337,13 +337,13 @@ func npcShots(game *game) {
 func updateEnemyShots(game *game) {
 	for i := range game.enemyshots {
 		switch game.enemyshots[i].direction {
-		case UP:
+		case OLDUP:
 			game.enemyshots[i].yShot -= game.enemyshots[i].speed
-		case DOWN:
+		case OLDDOWN:
 			game.enemyshots[i].yShot += game.enemyshots[i].speed
-		case LEFT:
+		case OLDLEFT:
 			game.enemyshots[i].xShot -= game.enemyshots[i].speed
-		case RIGHT:
+		case OLDRIGHT:
 			game.enemyshots[i].xShot += game.enemyshots[i].speed
 		}
 	}
@@ -489,6 +489,16 @@ func getPlayerBounds(game *game) collision.BoundingBox {
 		Height: float64(PLAYERS_HEIGHT),
 	}
 	return playerBounds
+}
+
+func getRandomBounds(game *game, x int, y int) collision.BoundingBox {
+	randBounds := collision.BoundingBox{
+		X:      float64(x),
+		Y:      float64(y),
+		Width:  float64(NPC1_WIDTH),
+		Height: float64(NPC1_HEIGHT),
+	}
+	return randBounds
 }
 
 func getShooterBounds(game *game, iterator int) collision.BoundingBox {
@@ -649,6 +659,40 @@ func checkEnemyCollisions(game *game, npcs []player) []player {
 		}
 	}
 	return npcs
+}
+
+func checkSpawnCollisions(game *game, x int, y int) bool {
+	randomBounds := getRandomBounds(game, x, y)
+	if collision.AABBCollision(randomBounds, getPlayerBounds(game)) {
+		return true
+	}
+	for i := 0; i < len(game.shootnpc); i++ {
+		shooterBounds := getShooterBounds(game, i)
+		if collision.AABBCollision(randomBounds, shooterBounds) {
+			return true
+		}
+
+	}
+	for i := 0; i < len(game.regnpc); i++ {
+		regBounds := getRegBounds(game, i)
+		if collision.AABBCollision(randomBounds, regBounds) {
+			return true
+		}
+
+	}
+	for i := 0; i < len(game.fires); i++ {
+		fireBounds := getFireBounds(game, i)
+		if collision.AABBCollision(randomBounds, fireBounds) {
+			return true
+		}
+	}
+	for i := 0; i < len(game.boundTiles); i++ {
+		tileBounds := getTileBounds(game, i)
+		if collision.AABBCollision(randomBounds, tileBounds) {
+			return true
+		}
+	}
+	return false
 }
 
 // shots don't go through boundaries (for both player and enemy shots)
@@ -888,6 +932,9 @@ func randomEnemy(game *game) {
 	// generate new regular NPCs
 	for i := 0; i < numRegNpcs; i++ {
 		x, y := randomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		for checkSpawnCollisions(game, x, y) {
+			x, y = randomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		}
 		var npc player
 		switch i % 3 {
 		case 0:
@@ -903,6 +950,9 @@ func randomEnemy(game *game) {
 	// generate new shooting NPCs
 	for i := 0; i < numShootNpcs; i++ {
 		x, y := randomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		for checkSpawnCollisions(game, x, y) {
+			x, y = randomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		}
 		npc := player{spriteSheet: LoadEmbeddedImage("", "shooter.png"), xLoc: x, yLoc: y, typing: "shoot"}
 		game.shootnpc = append(game.shootnpc, npc)
 	}
