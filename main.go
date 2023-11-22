@@ -266,12 +266,12 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	regNpcs := []player{
-		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2},  // NPC1
-		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC2
-		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC3
+		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"},  // NPC1
+		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"}, // NPC2
+		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"}, // NPC3
 	}
 	shootNpcs := []player{
-		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC4
+		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "shoot"}, // NPC4
 	}
 
 	regNpcs = make([]player, 0, numberOfRegNpcs)
