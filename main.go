@@ -390,6 +390,7 @@ func headToPlayer(game *game) {
 }
 
 func walkPath(game *game, npc []player, path *paths.Path) {
+	fmt.Println(npc)
 	for i := 0; i < len(npc); i++ {
 		if path != nil && npc[i].chosen {
 			pathCell := path.Current()
@@ -406,14 +407,18 @@ func walkPath(game *game, npc []player, path *paths.Path) {
 			direction := 0.0
 			if pathCell.X*game.curMap.TileWidth > int(npc[i].xLoc) {
 				direction = 1.0
+				npc[i].direction = LEFT
 			} else if pathCell.X*game.curMap.TileWidth < int(npc[i].xLoc) {
 				direction = -1.0
+				npc[i].direction = RIGHT
 			}
 			Ydirection := 0.0
 			if pathCell.Y*game.curMap.TileHeight > int(npc[i].yLoc) {
 				Ydirection = 1.0
+				npc[i].direction = DOWN
 			} else if pathCell.Y*game.curMap.TileHeight < int(npc[i].yLoc) {
 				Ydirection = -1.0
+				npc[i].direction = UP
 			}
 			npc[i].xLoc += int(direction) * 2
 			npc[i].yLoc += int(Ydirection) * 2
