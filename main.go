@@ -88,6 +88,7 @@ type player struct {
 	health      int
 	typing      string
 	chosen      bool
+	shotWait    int
 }
 
 type boundaries struct {
@@ -170,18 +171,20 @@ func (game *game) Update() error {
 			case RIGHT:
 				game.playershots[i].xShot += game.playershots[i].speed
 			}
-			if game.playershots[i].xShot < 0 || game.playershots[i].xShot > WINDOW_WIDTH ||
-				game.playershots[i].yShot < 0 || game.playershots[i].yShot > WINDOW_HEIGHT {
-
-				game.playershots = append(game.playershots[:i], game.playershots[i+1:]...)
-				i--
-
-			}
+			//if game.playershots[i].xShot < 0 || game.playershots[i].xShot > WINDOW_WIDTH ||
+			//	game.playershots[i].yShot < 0 || game.playershots[i].yShot > WINDOW_HEIGHT {
+			//
+			//	game.playershots = append(game.playershots[:i], game.playershots[i+1:]...)
+			//	i--
+			//
+			//}
 		}
 
 	}
 	walkPath(game, game.shootnpc, game.path)
 	walkPath(game, game.regnpc, game.path2)
+	npcShots(game)
+	updateEnemyShots(game)
 	return nil
 }
 
@@ -235,6 +238,12 @@ func (game *game) Draw(screen *ebiten.Image) {
 		return
 	}
 	for _, shot := range game.playershots {
+		drawOptions := ebiten.DrawImageOptions{}
+		drawOptions.GeoM.Translate(shot.xShot, shot.yShot)
+		screen.DrawImage(shot.pict, &drawOptions)
+	}
+
+	for _, shot := range game.enemyshots {
 		drawOptions := ebiten.DrawImageOptions{}
 		drawOptions.GeoM.Translate(shot.xShot, shot.yShot)
 		screen.DrawImage(shot.pict, &drawOptions)
@@ -295,6 +304,41 @@ func main() {
 }
 
 // util funcs
+
+// add shots
+func npcShots(game *game) {
+	for i := 0; i < len(game.shootnpc); i++ {
+		game.shootnpc[i].shotWait += 1
+		if game.shootnpc[i].shotWait%100 == 0 {
+			shotImg := LoadEmbeddedImage("", "projectile.png")
+			projectile := Shot{
+				pict:      shotImg,
+				xShot:     float64(game.shootnpc[i].xLoc),
+				yShot:     float64(game.shootnpc[i].yLoc),
+				direction: game.shootnpc[i].direction,
+				typing:    "npc",
+				speed:     10, // set the speed of the projectile
+			}
+			game.enemyshots = append(game.enemyshots, projectile)
+		}
+	}
+}
+
+// shots direction/ speed
+func updateEnemyShots(game *game) {
+	for i := range game.enemyshots {
+		switch game.enemyshots[i].direction {
+		case UP:
+			game.enemyshots[i].yShot -= game.enemyshots[i].speed
+		case DOWN:
+			game.enemyshots[i].yShot += game.enemyshots[i].speed
+		case LEFT:
+			game.enemyshots[i].xShot -= game.enemyshots[i].speed
+		case RIGHT:
+			game.enemyshots[i].xShot += game.enemyshots[i].speed
+		}
+	}
+}
 
 func NpcAnimation(game *game, npcs []player) {
 	for i := 0; i < len(npcs); i++ {
