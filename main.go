@@ -266,12 +266,12 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	regNpcs := []player{
-		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"},  // NPC1
-		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"}, // NPC2
-		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"}, // NPC3
+		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false},  // NPC1
+		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false}, // NPC2
+		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false}, // NPC3
 	}
 	shootNpcs := []player{
-		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "shoot"}, // NPC4
+		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "shoot", chosen: false}, // NPC4
 	}
 
 	regNpcs = make([]player, 0, numberOfRegNpcs)
@@ -400,6 +400,7 @@ func headToPlayer(game *game) {
 }
 
 func walkPath(game *game, npc []player, path *paths.Path) {
+	fmt.Println(npc)
 	for i := 0; i < len(npc); i++ {
 		if path != nil && npc[i].chosen {
 			pathCell := path.Current()
@@ -416,14 +417,18 @@ func walkPath(game *game, npc []player, path *paths.Path) {
 			direction := 0.0
 			if pathCell.X*game.curMap.TileWidth > int(npc[i].xLoc) {
 				direction = 1.0
+				npc[i].direction = LEFT
 			} else if pathCell.X*game.curMap.TileWidth < int(npc[i].xLoc) {
 				direction = -1.0
+				npc[i].direction = RIGHT
 			}
 			Ydirection := 0.0
 			if pathCell.Y*game.curMap.TileHeight > int(npc[i].yLoc) {
 				Ydirection = 1.0
+				npc[i].direction = DOWN
 			} else if pathCell.Y*game.curMap.TileHeight < int(npc[i].yLoc) {
 				Ydirection = -1.0
+				npc[i].direction = UP
 			}
 			npc[i].xLoc += int(direction) * 2
 			npc[i].yLoc += int(Ydirection) * 2
@@ -828,18 +833,18 @@ func randomEnemy(game *game) {
 		var npc player
 		switch i % 1 {
 		case 0:
-			npc = player{spriteSheet: LoadEmbeddedImage("", "oldman.png"), xLoc: x, yLoc: y, typing: "reg"}
+			npc = player{spriteSheet: LoadEmbeddedImage("", "oldman.png"), xLoc: x, yLoc: y, typing: "reg", chosen: false}
 		case 1:
-			npc = player{spriteSheet: LoadEmbeddedImage("", "warrior.png"), xLoc: x, yLoc: y, typing: "reg"}
+			npc = player{spriteSheet: LoadEmbeddedImage("", "warrior.png"), xLoc: x, yLoc: y, typing: "reg", chosen: false}
 		case 2:
-			npc = player{spriteSheet: LoadEmbeddedImage("", "oldlady.png"), xLoc: x, yLoc: y, typing: "reg"}
+			npc = player{spriteSheet: LoadEmbeddedImage("", "oldlady.png"), xLoc: x, yLoc: y, typing: "reg", chosen: false}
 		}
 		game.regnpc = append(game.regnpc, npc)
 	}
 
 	for i := 0; i < numberOfShootNpcs; i++ {
 		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-		npc := player{spriteSheet: LoadEmbeddedImage("", "shooter.png"), xLoc: x, yLoc: y, typing: "shoot"}
+		npc := player{spriteSheet: LoadEmbeddedImage("", "shooter.png"), xLoc: x, yLoc: y, typing: "shoot", chosen: false}
 		game.shootnpc = append(game.shootnpc, npc)
 	}
 }
