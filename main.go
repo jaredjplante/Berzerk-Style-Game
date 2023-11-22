@@ -75,6 +75,7 @@ type game struct {
 	fires          []obj
 	chosenNum      int
 	gameOver       bool
+	currMapnumber  int
 }
 
 type player struct {
@@ -121,6 +122,7 @@ func (game *game) Update() error {
 	game.enemyshots = checkShotCollisions(game, game.enemyshots)
 	checkChosen(game)
 	headToPlayer(game)
+	//game.checkMapTransition()
 	//walkPath(game, game.shootnpc, game.path)
 	//walkPath(game, game.regnpc, game.path2)
 	NpcAnimation(game, game.shootnpc)
@@ -128,31 +130,31 @@ func (game *game) Update() error {
 	print(game.chosenNum)
 
 	game.mainplayer.pframeDelay += 1
-	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
-	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && X > 0 {
-		game.mainplayer.xLoc -= 1
-		if checkPlayerCollisions(game) {
-			game.mainplayer.xLoc += 3
-		}
-	} else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) && X < WINDOW_WIDTH-PLAYERS_WIDTH {
-		game.mainplayer.xLoc += 1
-		if checkPlayerCollisions(game) {
-			game.mainplayer.xLoc -= 3
-		}
-	} else if ebiten.IsKeyPressed(ebiten.KeyArrowUp) && Y > 0 {
-		game.mainplayer.yLoc -= 1
-		if checkPlayerCollisions(game) {
-			game.mainplayer.yLoc += 3
-		}
-	} else if ebiten.IsKeyPressed(ebiten.KeyArrowDown) && Y < WINDOW_HEIGHT-PLAYERS_HEIGHT {
-		game.mainplayer.yLoc += 1
-		if checkPlayerCollisions(game) {
-			game.mainplayer.yLoc -= 3
-		}
-	}
+	//X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
+	//if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && X > 0 {
+	//	game.mainplayer.xLoc -= 1
+	//	if checkPlayerCollisions(game) {
+	//		game.mainplayer.xLoc += 3
+	//	}
+	//} else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) && X < WINDOW_WIDTH-PLAYERS_WIDTH {
+	//	game.mainplayer.xLoc += 1
+	//	if checkPlayerCollisions(game) {
+	//		game.mainplayer.xLoc -= 3
+	//	}
+	//} else if ebiten.IsKeyPressed(ebiten.KeyArrowUp) && Y > 0 {
+	//	game.mainplayer.yLoc -= 1
+	//	if checkPlayerCollisions(game) {
+	//		game.mainplayer.yLoc += 3
+	//	}
+	//} else if ebiten.IsKeyPressed(ebiten.KeyArrowDown) && Y < WINDOW_HEIGHT-PLAYERS_HEIGHT {
+	//	game.mainplayer.yLoc += 1
+	//	if checkPlayerCollisions(game) {
+	//		game.mainplayer.yLoc -= 3
+	//	}
+	//}
 
 	if game.mainplayer.pframeDelay%FRAMES_COUNT == 0 {
-		game.mainplayer.pframe += 1
+		//game.mainplayer.pframe += 1
 		if game.mainplayer.pframe >= FRAMES_PER_SHEET {
 			game.mainplayer.pframe = 0
 
@@ -176,14 +178,16 @@ func (game *game) Update() error {
 			}
 			if game.mainplayer.xLoc == 100 && game.mainplayer.yLoc == 100 {
 				// Transition to the next map
-				game.loadNextMap()
-				//if len(game.shootnpc) == 0 && len(game.regnpc) == 0 {
-				// Check if player is in the transition area
+				//game.loadNextMap()
 
 			}
+			if len(game.shootnpc) == 0 && len(game.regnpc) == 0 {
+				//game.loadNextMap()
+			}
+
 		}
 		if inpututil.IsKeyJustPressed(ebiten.KeyT) {
-			game.loadNextMap()
+			//game.loadNextMap()
 		}
 	}
 	walkPath(game, game.shootnpc, game.path)
@@ -269,38 +273,33 @@ func main() {
 	shootNpcs := []player{
 		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2}, // NPC4
 	}
-	getRandomPosition := func(maxWidth, maxHeight, npcWidth, npcHeight int) (int, int) {
-		x := rand.Intn(maxWidth - npcWidth)
-		y := rand.Intn(maxHeight - npcHeight)
-		return x, y
-	}
 
 	regNpcs = make([]player, 0, numberOfRegNpcs)
 
-	// oldman NPC
-	for i := 0; i < numberOfRegNpcs/3; i++ {
-		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-		regNpcs = append(regNpcs, player{spriteSheet: animationOldMan, xLoc: x, yLoc: y, typing: "reg"})
-	}
-
-	// warrior NPC
-	for i := 0; i < numberOfRegNpcs/3; i++ {
-		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-		regNpcs = append(regNpcs, player{spriteSheet: animationWarrior, xLoc: x, yLoc: y, typing: "reg"})
-	}
-
-	// oldlady NPC
-	for i := 0; i < numberOfRegNpcs/3; i++ {
-		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-		regNpcs = append(regNpcs, player{spriteSheet: animationOldLady, xLoc: x, yLoc: y, typing: "reg"})
-	}
-
-	shootNpcs = make([]player, numberOfShootNpcs)
-	for i := range shootNpcs {
-		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
-		shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y, typing: "shoot"}
-	}
-	myPlayer := player{spriteSheet: animationGuy, xLoc: 100, yLoc: 600, health: 3}
+	//// oldman NPC
+	//for i := 0; i < numberOfRegNpcs/3; i++ {
+	//	x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+	//	regNpcs = append(regNpcs, player{spriteSheet: animationOldMan, xLoc: x, yLoc: y, typing: "reg"})
+	//}
+	//
+	//// warrior NPC
+	//for i := 0; i < numberOfRegNpcs/3; i++ {
+	//	x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+	//	regNpcs = append(regNpcs, player{spriteSheet: animationWarrior, xLoc: x, yLoc: y, typing: "reg"})
+	//}
+	//
+	//// oldlady NPC
+	//for i := 0; i < numberOfRegNpcs/3; i++ {
+	//	x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+	//	regNpcs = append(regNpcs, player{spriteSheet: animationOldLady, xLoc: x, yLoc: y, typing: "reg"})
+	//}
+	//
+	//shootNpcs = make([]player, numberOfShootNpcs)
+	//for i := range shootNpcs {
+	//	x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+	//	shootNpcs[i] = player{spriteSheet: animationShooter, xLoc: x, yLoc: y, typing: "shoot"}
+	//}
+	myPlayer := player{spriteSheet: animationGuy, xLoc: 100, yLoc: 100, health: 3}
 
 	fmt.Printf("Initial Player Health: %d\n", myPlayer.health)
 	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
@@ -319,6 +318,8 @@ func main() {
 		pathMap:        searchablePathMap,
 		pathMap2:       searchablePathMap,
 	}
+	createBoundSlice(&game)
+	randomEnemy(&game)
 	createBoundSlice(&game)
 	err := ebiten.RunGame(&game)
 	if err != nil {
@@ -768,17 +769,21 @@ func getPlayerInput(game *game) {
 		game.mainplayer.yLoc += 0
 	}
 	if ebiten.IsKeyPressed(ebiten.KeyArrowLeft) && game.mainplayer.xLoc > 0 {
+		game.mainplayer.pframe += 1
 		game.mainplayer.xLoc -= 5
 		game.mainplayer.direction = LEFT
 	} else if ebiten.IsKeyPressed(ebiten.KeyArrowRight) && game.mainplayer.xLoc < WINDOW_WIDTH-PLAYERS_WIDTH {
+		game.mainplayer.pframe += 1
 		game.mainplayer.xLoc += 5
 		game.mainplayer.direction = RIGHT
 	}
 
 	if ebiten.IsKeyPressed(ebiten.KeyArrowUp) && game.mainplayer.yLoc > 0 {
+		game.mainplayer.pframe += 1
 		game.mainplayer.yLoc -= 5
 		game.mainplayer.direction = UP
 	} else if ebiten.IsKeyPressed(ebiten.KeyArrowDown) && game.mainplayer.yLoc < WINDOW_HEIGHT-PLAYERS_HEIGHT {
+		game.mainplayer.pframe += 1
 		game.mainplayer.yLoc += 5
 		game.mainplayer.direction = DOWN
 	}
@@ -790,20 +795,88 @@ func getPlayerInput(game *game) {
 			yShot:     float64(game.mainplayer.yLoc),
 			direction: game.mainplayer.direction,
 			typing:    "player",
-			speed:     5, // set the speed of the projectile
+			speed:     10, // set the speed of the projectile
 		}
 		game.playershots = append(game.playershots, projectile)
 	}
 }
-func (game *game) loadNextMap() {
-	fmt.Println("Attempting to load next map...")
-	// load the map and check for errors
-	newMap := loadMapFromEmbedded(path.Join("assets", "map2.tmx"))
-	if newMap == nil {
-		fmt.Println("Failed to load map2.tmx")
-		return
+
+//	func (game *game) loadNextMap() {
+//		fmt.Println("Attempting to load next map...")
+//		randomEnemy(game)
+//		game.mainplayer.xLoc = 100
+//		game.mainplayer.yLoc = 100
+//
+//		// Update tile collisions for the new map
+//		createBoundSlice(game)
+//		if game.currMapnumber == 3 {
+//			fmt.Println("No more maps to load.")
+//			return
+//		}
+//		// Increment the map number
+//		game.currMapnumber++
+//
+//		// Determine the next map to load based on the current map number
+//		var nextMapName string
+//		switch game.currMapnumber {
+//		case 2:
+//			nextMapName = "map2.tmx"
+//		case 3:
+//			nextMapName = "map3.tmx"
+//		default:
+//			fmt.Println("No more maps to load.")
+//			return
+//		}
+//
+//		// Load the map and check for errors
+//		newMap := loadMapFromEmbedded(path.Join("assets", nextMapName))
+//		if newMap == nil {
+//			fmt.Printf("Failed to load %s\n", nextMapName)
+//			return
+//		}
+//
+//		game.curMap = newMap
+//		fmt.Printf("Map transitioned to %s\n", nextMapName)
+//
+//		// Reset or initialize game state as needed
+//		// ...
+//	}
+func randomEnemy(game *game) {
+	// clear existing NPCs
+	game.shootnpc = []player{}
+	game.regnpc = []player{}
+
+	// generate new NPCs based on the current map
+	for i := 0; i < numberOfRegNpcs; i++ {
+		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		var npc player
+		switch i % 1 {
+		case 0:
+			npc = player{spriteSheet: LoadEmbeddedImage("", "oldman.png"), xLoc: x, yLoc: y, typing: "reg"}
+		case 1:
+			npc = player{spriteSheet: LoadEmbeddedImage("", "warrior.png"), xLoc: x, yLoc: y, typing: "reg"}
+		case 2:
+			npc = player{spriteSheet: LoadEmbeddedImage("", "oldlady.png"), xLoc: x, yLoc: y, typing: "reg"}
+		}
+		game.regnpc = append(game.regnpc, npc)
 	}
-	game.curMap = newMap
-	fmt.Println("Map transitioned to map2.tmx")
-	// ...
+
+	for i := 0; i < numberOfShootNpcs; i++ {
+		x, y := getRandomPosition(WINDOW_WIDTH, WINDOW_HEIGHT, NPC1_WIDTH, NPC1_HEIGHT)
+		npc := player{spriteSheet: LoadEmbeddedImage("", "shooter.png"), xLoc: x, yLoc: y, typing: "shoot"}
+		game.shootnpc = append(game.shootnpc, npc)
+	}
 }
+
+func getRandomPosition(maxWidth, maxHeight, npcWidth, npcHeight int) (int, int) {
+	x := rand.Intn(maxWidth - NPC1_WIDTH)
+	y := rand.Intn(maxHeight - NPC1_HEIGHT)
+	return x, y
+}
+
+//func (game *game) checkMapTransition() {
+//	// check specific conditions for transitioning to the next map
+//	if len(game.shootnpc) == 0 && len(game.regnpc) == 0 {
+//		game.loadNextMap()
+//	}
+//}
