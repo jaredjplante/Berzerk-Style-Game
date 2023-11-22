@@ -80,6 +80,7 @@ type game struct {
 	gameOver       bool
 	currMapnumber  int
 	textFont       font.Face
+	win            bool
 }
 
 type player struct {
@@ -106,7 +107,8 @@ type Shot struct {
 	pict      *ebiten.Image
 	xShot     float64
 	yShot     float64
-	deltaX    int
+	deltaX    float64
+	deltaY    float64
 	typing    string
 	direction int
 	speed     float64
@@ -175,6 +177,13 @@ func (game *game) Update() error {
 			case RIGHT:
 				game.playershots[i].xShot += game.playershots[i].speed
 			}
+			if game.gameOver {
+				return nil
+			} else {
+				if game.win {
+					return nil
+				}
+			}
 		}
 	}
 	walkPath(game, game.shootnpc, game.path)
@@ -232,6 +241,10 @@ func (game *game) Draw(screen *ebiten.Image) {
 		// Display Game Over message
 		DrawLossScreen(screen, game)
 		DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), WINDOW_HEIGHT/2, WINDOW_WIDTH/4, game)
+		return
+	}
+	if game.win {
+		DrawWinScreen(screen, game)
 		return
 	}
 	for _, shot := range game.playershots {
@@ -292,7 +305,6 @@ func main() {
 	}
 	createBoundSlice(&game)
 	randomEnemy(&game)
-	createBoundSlice(&game)
 	err := ebiten.RunGame(&game)
 	if err != nil {
 		fmt.Println("Couldn't run game:", err)
@@ -835,9 +847,9 @@ func (game *game) loadNextMap() {
 	switch game.currMapnumber {
 	//case 1:
 	//	nextMapName = "map1.tmx" // incase we ever need to get back to map1
-	case 2:
+	case 1:
 		nextMapName = "map2.tmx"
-	case 3:
+	case 2:
 		nextMapName = "map3.tmx"
 	default:
 		fmt.Println("No more maps to load.")
@@ -912,6 +924,7 @@ func (game *game) mapTransition() {
 			// load the next map
 			game.loadNextMap()
 		} else {
+			game.win = true
 		}
 	}
 }
@@ -929,4 +942,11 @@ func DrawLossScreen(screen *ebiten.Image, game *game) {
 	y := WINDOW_HEIGHT / 2
 
 	text.Draw(screen, loseText, font, x, y, color.White)
+}
+func DrawWinScreen(screen *ebiten.Image, game *game) {
+	screen.Fill(color.White) // Black background
+	winText := "You Win!"
+	x := (WINDOW_WIDTH - len(winText)*7) / 2 // 7 is approximate width per character
+	y := WINDOW_HEIGHT / 2
+	text.Draw(screen, winText, basicfont.Face7x13, x, y, color.Black)
 }
