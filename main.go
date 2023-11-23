@@ -8,6 +8,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text"
 	"github.com/lafriks/go-tiled"
@@ -16,6 +17,7 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	_ "golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/font/opentype"
 	_ "golang.org/x/image/font/opentype"
 	"image"
 	"image/color"
@@ -44,8 +46,9 @@ const (
 	FRAMES_PER_SHEET     = 8
 	FRAMES_COUNT         = 4
 	NPC_FRAMES_PER_SHEET = 3
-	numberOfShootNpcs    = 4
 	numberOfRegNpcs      = 3
+	SHOT_WIDTH           = 64
+	SHOT_HEIGHT          = 72
 	SOUND_SAMPLE_RATE    = 48000
 )
 const (
@@ -84,15 +87,18 @@ type game struct {
 	currMapnumber  int
 	textFont       font.Face
 	win            bool
-	//sounds
-	enemyDeath  sound
-	enemyShot   sound
-	lvlComplete sound
-	lifeLoss    sound
-	loseWav     sound
-	winWav      sound
-	playerShot  sound
-	shotCollide sound
+	enemyDeath     sound
+	enemyShot      sound
+	lvlComplete    sound
+	lifeLoss       sound
+	loseWav        sound
+	winWav         sound
+	playerShot     sound
+	shotCollide    sound
+}
+type sound struct {
+	audioContext *audio.Context
+	soundPlayer  *audio.Player
 }
 
 type player struct {
@@ -116,25 +122,22 @@ type boundaries struct {
 }
 
 type Shot struct {
-	pict      *ebiten.Image
-	xShot     float64
-	yShot     float64
-	deltaX    float64
-	deltaY    float64
-	typing    string
-	direction int
-	speed     float64
+	pict        *ebiten.Image
+	xShot       float64
+	yShot       float64
+	deltaX      float64
+	deltaY      float64
+	typing      string
+	direction   int
+	speed       float64
+	rframe      int
+	rframeDelay int
 }
 
 type obj struct {
 	pict *ebiten.Image
 	xObj int
 	yObj int
-}
-
-type sound struct {
-	audioContext *audio.Context
-	soundPlayer  *audio.Player
 }
 
 func (game *game) Update() error {
@@ -184,6 +187,7 @@ func (game *game) Update() error {
 
 		}
 		for i := range game.playershots {
+			// Update the position based on the direction
 			switch game.playershots[i].direction {
 			case UP:
 				game.playershots[i].yShot -= game.playershots[i].speed
@@ -194,15 +198,18 @@ func (game *game) Update() error {
 			case RIGHT:
 				game.playershots[i].xShot += game.playershots[i].speed
 			}
-			if game.gameOver {
+
+			game.playershots[i] = animateShots(game, game.playershots[i])
+		}
+		if game.gameOver {
+			return nil
+		} else {
+			if game.win {
 				return nil
-			} else {
-				if game.win {
-					return nil
-				}
 			}
 		}
 	}
+
 	walkPath(game, game.shootnpc, game.path)
 	walkPath(game, game.regnpc, game.path2)
 	npcShots(game)
@@ -256,19 +263,24 @@ func (game *game) Draw(screen *ebiten.Image) {
 	}
 	if game.gameOver {
 		// Display Game Over message
-		DrawLossScreen(screen, game)
-		DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), WINDOW_HEIGHT/2, WINDOW_WIDTH/4, game)
+		DrawLossScreen(screen, game.textFont)
+		//DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), WINDOW_HEIGHT/2, WINDOW_WIDTH/4, game)
+		//DrawCenteredText(screen.game.textFont, game.score)
 		return
 	}
 	if game.win {
-		DrawWinScreen(screen, game)
+		DrawWinScreen(screen, game.textFont)
 		ebiten.SetMaxTPS(0)
 		return
 	}
 	for _, shot := range game.playershots {
 		drawOptions := ebiten.DrawImageOptions{}
 		drawOptions.GeoM.Translate(shot.xShot, shot.yShot)
-		screen.DrawImage(shot.pict, &drawOptions)
+		screen.DrawImage(shot.pict.SubImage(image.Rect(
+			shot.rframe*SHOT_WIDTH,
+			game.mainplayer.direction*SHOT_HEIGHT,
+			(shot.rframe+1)*SHOT_WIDTH,
+			(game.mainplayer.direction+1)*SHOT_HEIGHT)).(*ebiten.Image), &drawOptions)
 	}
 
 	for _, shot := range game.enemyshots {
@@ -278,8 +290,8 @@ func (game *game) Draw(screen *ebiten.Image) {
 	}
 
 	//draw text
-	DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), 100, 12, game)
-	DrawCenteredText(screen, fmt.Sprintf("Health: %d", game.mainplayer.health), 250, 12, game)
+	DrawCenteredText2(screen, fmt.Sprintf("Score: %d", game.score), 100, 12, game)
+	DrawCenteredText2(screen, fmt.Sprintf("Health: %d", game.mainplayer.health), 250, 12, game)
 }
 
 func main() {
@@ -290,6 +302,8 @@ func main() {
 	animationOldMan := LoadEmbeddedImage("", "oldman.png")
 	animationWarrior := LoadEmbeddedImage("", "warrior.png")
 	animationShooter := LoadEmbeddedImage("", "shooter.png")
+	customFont := LoadScoreFont()
+
 	time.Now().UnixNano()
 
 	regNpcs := []player{
@@ -311,10 +325,10 @@ func main() {
 	ebiten.SetWindowTitle("Jared Plante and Ronaldo Auguste Project 3")
 	ebitenImageMap := makeEbitenImagesFromMap(*gameMap)
 	game := game{
-		curMap:     gameMap,
-		tileDict:   ebitenImageMap,
-		mainplayer: myPlayer,
-
+		curMap:         gameMap,
+		tileDict:       ebitenImageMap,
+		mainplayer:     myPlayer,
+		textFont:       customFont,
 		regnpc:         regNpcs,
 		shootnpc:       shootNpcs,
 		pathFindingMap: pathMap,
@@ -333,6 +347,19 @@ func main() {
 // util funcs
 
 // add shots
+func animateShots(game *game, shot Shot) Shot {
+	//for i := range game.playershots {
+	shot.rframeDelay++
+	if shot.rframeDelay >= 1 {
+		shot.rframeDelay = 0
+		shot.rframe++
+		if shot.rframe >= 3 { // Assuming 4 frames per animation
+			shot.rframe = 0
+		}
+	}
+	//}
+	return shot
+}
 func npcShots(game *game) {
 	for i := 0; i < len(game.shootnpc); i++ {
 		game.shootnpc[i].shotWait += 1
@@ -544,7 +571,7 @@ func getPlayerShotBounds(game *game, iterator int) collision.BoundingBox {
 	regBounds := collision.BoundingBox{
 		X:      float64(game.playershots[iterator].xShot),
 		Y:      float64(game.playershots[iterator].yShot),
-		Width:  float64(game.playershots[iterator].pict.Bounds().Dx()),
+		Width:  float64(72),
 		Height: float64(game.playershots[iterator].pict.Bounds().Dy()),
 	}
 	return regBounds
@@ -554,7 +581,7 @@ func getEnemyShotBounds(game *game, iterator int) collision.BoundingBox {
 	regBounds := collision.BoundingBox{
 		X:      float64(game.enemyshots[iterator].xShot),
 		Y:      float64(game.enemyshots[iterator].yShot),
-		Width:  float64(game.enemyshots[iterator].pict.Bounds().Dx()),
+		Width:  float64(72),
 		Height: float64(game.enemyshots[iterator].pict.Bounds().Dy()),
 	}
 	return regBounds
@@ -760,15 +787,10 @@ func checkShotCollisions(game *game, shots []Shot) []Shot {
 
 //text
 
-func DrawCenteredText(screen *ebiten.Image, s string, cx, cy int, game *game) { //from https://github.com/sedyh/ebitengine-cheatsheet
-	bounds := text.BoundString(basicfont.Face7x13, s)
+func DrawCenteredText(screen *ebiten.Image, font font.Face, s string, cx, cy int) { //from https://github.com/sedyh/ebitengine-cheatsheet
+	bounds := text.BoundString(font, s)
 	x, y := cx-bounds.Min.X-bounds.Dx()/2, cy-bounds.Min.Y-bounds.Dy()/2
-
-	// draw text box
-	rectWidth := bounds.Dx() + 10 + game.score
-	rectHeight := bounds.Dy() + 5
-	ebitenutil.DrawRect(screen, float64(x)-5, float64(y)-13, float64(rectWidth), float64(rectHeight), colornames.Burlywood)
-	text.Draw(screen, s, basicfont.Face7x13, x, y, colornames.Black)
+	text.Draw(screen, s, font, x, y, colornames.White)
 }
 
 //maps
@@ -892,7 +914,7 @@ func getPlayerInput(game *game) {
 		game.mainplayer.direction = DOWN
 	}
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		shotImg := LoadEmbeddedImage("", "projectile.png")
+		shotImg := LoadEmbeddedImage("", "blue.png")
 		projectile := Shot{
 			pict:      shotImg,
 			xShot:     float64(game.mainplayer.xLoc),
@@ -1016,23 +1038,49 @@ func (game *game) mapTransition() {
 }
 
 // loss screen after game ends
-func DrawLossScreen(screen *ebiten.Image, game *game) {
-	//covers the entire screen with a black
-	screen.Fill(color.Black)
-
-	font := basicfont.Face7x13
+func DrawLossScreen(screen *ebiten.Image, font font.Face) {
+	screen.Fill(color.Black) // Fill the screen with black
 
 	loseText := "You Lose"
-
-	x := WINDOW_WIDTH / 2
+	x := (WINDOW_WIDTH - len(loseText)*7) / 2 // Calculate X position based on text width
 	y := WINDOW_HEIGHT / 2
 
 	text.Draw(screen, loseText, font, x, y, color.White)
 }
-func DrawWinScreen(screen *ebiten.Image, game *game) {
-	screen.Fill(color.White) // Black background
-	winText := "You Win!"
-	x := (WINDOW_WIDTH - len(winText)*7) / 2 // 7 is approximate width per character
+func DrawWinScreen(screen *ebiten.Image, font font.Face) {
+	screen.Fill(color.White) // Fill the screen with black
+
+	loseText := "You Win"
+	x := (WINDOW_WIDTH - len(loseText)*7) / 2 // Calculate X position based on text width
 	y := WINDOW_HEIGHT / 2
-	text.Draw(screen, winText, basicfont.Face7x13, x, y, color.Black)
+
+	text.Draw(screen, loseText, font, x, y, color.Black)
+}
+
+func LoadScoreFont() font.Face {
+	//originally inspired by https://www.fatoldyeti.com/posts/roguelike16/
+	trueTypeFont, err := opentype.Parse(fonts.PressStart2P_ttf)
+	if err != nil {
+		fmt.Println("Error loading font for score:", err)
+	}
+	fontFace, err := opentype.NewFace(trueTypeFont, &opentype.FaceOptions{
+		Size:    20,
+		DPI:     72,
+		Hinting: font.HintingFull,
+	})
+	if err != nil {
+		fmt.Println("Error loading font of correct size for score:", err)
+	}
+	return fontFace
+}
+
+func DrawCenteredText2(screen *ebiten.Image, s string, cx, cy int, game *game) { //from https://github.com/sedyh/ebitengine-cheatsheet
+	bounds := text.BoundString(basicfont.Face7x13, s)
+	x, y := cx-bounds.Min.X-bounds.Dx()/2, cy-bounds.Min.Y-bounds.Dy()/2
+
+	// draw text box
+	rectWidth := bounds.Dx() + 10 + game.score
+	rectHeight := bounds.Dy() + 5
+	ebitenutil.DrawRect(screen, float64(x)-5, float64(y)-13, float64(rectWidth), float64(rectHeight), colornames.Burlywood)
+	text.Draw(screen, s, basicfont.Face7x13, x, y, colornames.Black)
 }
