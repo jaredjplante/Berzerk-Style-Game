@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/co0p/tankism/lib/collision"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/audio/wav"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -47,6 +49,7 @@ const (
 	numberOfRegNpcs      = 3
 	SHOT_WIDTH           = 64
 	SHOT_HEIGHT          = 72
+	SOUND_SAMPLE_RATE    = 48000
 )
 const (
 	UP = iota
@@ -84,6 +87,18 @@ type game struct {
 	currMapnumber  int
 	textFont       font.Face
 	win            bool
+	enemyDeath     sound
+	enemyShot      sound
+	lvlComplete    sound
+	lifeLoss       sound
+	loseWav        sound
+	winWav         sound
+	playerShot     sound
+	shotCollide    sound
+}
+type sound struct {
+	audioContext *audio.Context
+	soundPlayer  *audio.Player
 }
 
 type player struct {
@@ -855,6 +870,22 @@ func LoadEmbeddedImage(folderName string, imageName string) *ebiten.Image {
 		fmt.Println("Error loading tile image:", imageName, err)
 	}
 	return ebitenImage
+}
+
+func LoadEmbeddedSound(folderName string, soundName string, context *audio.Context) *audio.Player {
+	embeddedFile, err := EmbeddedAssets.Open(path.Join("assets", folderName, soundName))
+	if err != nil {
+		log.Fatal("failed to load embedded sound ", soundName, err)
+	}
+	Sound, err := wav.DecodeWithoutResampling(embeddedFile)
+	if err != nil {
+		fmt.Println("Error loading sound file:", soundName, err)
+	}
+	Player, err := context.NewPlayer(Sound)
+	if err != nil {
+		fmt.Println("Couldn't create sound player: ", err)
+	}
+	return Player
 }
 
 func getPlayerInput(game *game) {
