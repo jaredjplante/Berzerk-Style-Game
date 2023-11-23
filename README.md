@@ -22,7 +22,8 @@ Barrier that player and npcs cannot pass through and take damage from are
 ![tile11](https://github.com/jaredjplante/Comp426_Project3/assets/96274077/a7863514-93cf-4d22-bdd7-0c4c36c4ca6c)
 
 
-There are 4 NPC animated sprites that are trying to kill you! Watch out! If they touch you or shoot you will die.
+There are 4 NPC animated sprites that are trying to kill you! Watch out! The Blue NPC shoots, the rest melee.
+
 ![warrior](https://github.com/jaredjplante/Comp426_Project3/assets/96274077/c50f9670-2f94-4c88-a45d-2917de7d1e6a)
 ![shooter](https://github.com/jaredjplante/Comp426_Project3/assets/96274077/f9640602-5e7b-4e2f-8909-44a25396ab8f)
 ![oldman](https://github.com/jaredjplante/Comp426_Project3/assets/96274077/225afe4d-e0d9-417a-9d70-43557d378146)
