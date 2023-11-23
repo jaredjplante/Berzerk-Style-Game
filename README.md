@@ -1,6 +1,7 @@
 # Berzerk Style Game
 Jared Plante
-Ronadlo Auguste
+############
+Ronaldo Auguste
 
 Move Up: Press the Arrow Up key to move your character up on the screen.
 
