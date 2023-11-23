@@ -342,6 +342,9 @@ func main() {
 	fmt.Printf("Initial Player Health: %d\n", myPlayer.health)
 	searchablePathMap := paths.NewGridFromStringArrays(pathMap, gameMap.TileWidth, gameMap.TileHeight)
 	searchablePathMap.SetWalkable('3', false)
+	searchablePathMap.SetWalkable('8', false)
+	searchablePathMap.SetWalkable('6', false)
+	//searchablePathMap.SetWalkable('15', false)
 	ebiten.SetWindowSize(gameMap.TileWidth*gameMap.Width, gameMap.TileHeight*gameMap.Height)
 	ebiten.SetWindowTitle("Jared Plante and Ronaldo Auguste Project 3")
 	ebitenImageMap := makeEbitenImagesFromMap(*gameMap)
@@ -827,7 +830,7 @@ func createBoundSlice(game *game) {
 			TileXpos := float64(game.curMap.TileWidth * tileX)
 			TileYpos := float64(game.curMap.TileHeight * tileY)
 			tileToDraw := game.curMap.Layers[0].Tiles[tileY*game.curMap.Width+tileX]
-			if tileToDraw.ID == 3 {
+			if tileToDraw.ID == 3 || tileToDraw.ID == 7 || tileToDraw.ID == 16 || tileToDraw.ID == 15 {
 				newBoundTile := boundaries{
 					boundTileX:  float64(TileXpos),
 					boundTileY:  float64(TileYpos),
@@ -1065,10 +1068,10 @@ func (game *game) mapTransition() {
 
 // loss screen after game ends
 func DrawLossScreen(screen *ebiten.Image, font font.Face) {
-	screen.Fill(color.Black) // Fill the screen with black
-
+	screen.Fill(color.Black)
 	loseText := "You Lose"
-	x := (WINDOW_WIDTH - len(loseText)*7) / 2 // Calculate X position based on text width
+	bounds := text.BoundString(font, loseText)
+	x := (WINDOW_WIDTH - bounds.Dx()) / 2
 	y := WINDOW_HEIGHT / 2
 
 	text.Draw(screen, loseText, font, x, y, color.White)
@@ -1076,11 +1079,12 @@ func DrawLossScreen(screen *ebiten.Image, font font.Face) {
 func DrawWinScreen(screen *ebiten.Image, font font.Face) {
 	screen.Fill(color.White) // Fill the screen with black
 
-	loseText := "You Win"
-	x := (WINDOW_WIDTH - len(loseText)*7) / 2 // Calculate X position based on text width
+	winText := "You Win"
+	bounds := text.BoundString(font, winText)
+	x := (WINDOW_WIDTH - bounds.Dx()) / 2
 	y := WINDOW_HEIGHT / 2
 
-	text.Draw(screen, loseText, font, x, y, color.Black)
+	text.Draw(screen, winText, font, x, y, color.Black)
 }
 
 func LoadScoreFont() font.Face {
@@ -1090,7 +1094,7 @@ func LoadScoreFont() font.Face {
 		fmt.Println("Error loading font for score:", err)
 	}
 	fontFace, err := opentype.NewFace(trueTypeFont, &opentype.FaceOptions{
-		Size:    20,
+		Size:    55,
 		DPI:     72,
 		Hinting: font.HintingFull,
 	})
