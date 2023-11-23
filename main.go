@@ -154,7 +154,7 @@ func (game *game) Update() error {
 	//walkPath(game, game.regnpc, game.path2)
 	NpcAnimation(game, game.shootnpc)
 	NpcAnimation(game, game.regnpc)
-	print(game.chosenNum)
+	//print(game.chosenNum)
 
 	game.mainplayer.pframeDelay += 1
 	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
@@ -345,6 +345,41 @@ func main() {
 	ebiten.SetWindowSize(gameMap.TileWidth*gameMap.Width, gameMap.TileHeight*gameMap.Height)
 	ebiten.SetWindowTitle("Jared Plante and Ronaldo Auguste Project 3")
 	ebitenImageMap := makeEbitenImagesFromMap(*gameMap)
+
+	//create sound
+	soundContext := audio.NewContext(SOUND_SAMPLE_RATE)
+	enemyDeath := sound{
+		audioContext: soundContext,
+		soundPlayer:  LoadEmbeddedSound("", "enemydeath.wav", soundContext),
+	}
+	enemyShot := sound{
+		audioContext: soundContext,
+		soundPlayer:  LoadEmbeddedSound("", "enemyshot.wav", soundContext),
+	}
+	levelcomplete := sound{
+		audioContext: soundContext,
+		soundPlayer:  LoadEmbeddedSound("", "levelcomplete.wav", soundContext),
+	}
+	lifeloss := sound{
+		audioContext: soundContext,
+		soundPlayer:  LoadEmbeddedSound("", "lifeloss.wav", soundContext),
+	}
+	lose := sound{
+		audioContext: soundContext,
+		soundPlayer:  LoadEmbeddedSound("", "lose.wav", soundContext),
+	}
+	playershot := sound{
+		audioContext: soundContext,
+		soundPlayer:  LoadEmbeddedSound("", "playershot.wav", soundContext),
+	}
+	shotcollide := sound{
+		audioContext: soundContext,
+		soundPlayer:  LoadEmbeddedSound("", "shotcollide.wav", soundContext),
+	}
+	win := sound{
+		audioContext: soundContext,
+		soundPlayer:  LoadEmbeddedSound("", "win.wav", soundContext),
+	}
 	game := game{
 		curMap:         gameMap,
 		tileDict:       ebitenImageMap,
@@ -355,6 +390,15 @@ func main() {
 		pathFindingMap: pathMap,
 		pathMap:        searchablePathMap,
 		pathMap2:       searchablePathMap,
+		//sounds
+		enemyDeath:  enemyDeath,
+		enemyShot:   enemyShot,
+		lvlComplete: levelcomplete,
+		lifeLoss:    lifeloss,
+		loseWav:     lose,
+		playerShot:  playershot,
+		shotCollide: shotcollide,
+		winWav:      win,
 	}
 	createBoundSlice(&game)
 	randomEnemy(&game)
@@ -380,9 +424,11 @@ func npcShots(game *game) {
 				yShot:     float64(game.shootnpc[i].yLoc),
 				direction: game.shootnpc[i].direction,
 				typing:    "npc",
-				speed:     25, // set the speed of the projectile
+				speed:     30, // set the speed of the projectile
 			}
 			game.enemyshots = append(game.enemyshots, projectile)
+			game.enemyShot.soundPlayer.Rewind()
+			game.enemyShot.soundPlayer.Play()
 		}
 	}
 }
@@ -446,21 +492,29 @@ func killEnemy(game *game, npcs []player, iterator int) []player {
 	if npcs[iterator].chosen == true {
 		game.chosenNum -= 1
 	}
+	game.enemyDeath.soundPlayer.Rewind()
+	game.enemyDeath.soundPlayer.Play()
 	//shift elements to remove enemies
 	npcs = append(npcs[:iterator], npcs[iterator+1:]...)
 	return npcs
 }
 
 func killShots(game *game, shots []Shot, iterator int) []Shot {
+	game.shotCollide.soundPlayer.Rewind()
+	game.shotCollide.soundPlayer.Play()
 	//shift elements to remove projectiles
 	shots = append(shots[:iterator], shots[iterator+1:]...)
 	return shots
 }
 
 func playerLifeLoss(game *game) {
+	game.lifeLoss.soundPlayer.Rewind()
+	game.lifeLoss.soundPlayer.Play()
 	game.mainplayer.health -= 1
 	fmt.Printf("Player Health: %d\n", game.mainplayer.health)
 	if game.mainplayer.health <= 0 {
+		game.loseWav.soundPlayer.Rewind()
+		game.loseWav.soundPlayer.Play()
 		handleDeath(game)
 	} else {
 		// respawn the player at specific location
@@ -515,7 +569,7 @@ func headToPlayer(game *game) {
 }
 
 func walkPath(game *game, npc []player, path *paths.Path) {
-	fmt.Println(npc)
+	//fmt.Println(npc)
 	for i := 0; i < len(npc); i++ {
 		if path != nil && npc[i].chosen {
 			pathCell := path.Current()
@@ -947,9 +1001,11 @@ func getPlayerInput(game *game) {
 			yShot:     float64(game.mainplayer.yLoc),
 			direction: game.mainplayer.direction,
 			typing:    "player",
-			speed:     25, // set the speed of the projectile
+			speed:     30, // set the speed of the projectile
 		}
 		game.playershots = append(game.playershots, projectile)
+		game.playerShot.soundPlayer.Rewind()
+		game.playerShot.soundPlayer.Play()
 	}
 }
 
@@ -962,7 +1018,11 @@ func (game *game) loadNextMap() {
 	if game.currMapnumber > 2 {
 		fmt.Println("No more maps to load.")
 		game.win = true
+		game.winWav.soundPlayer.Rewind()
+		game.winWav.soundPlayer.Play()
 	}
+	game.lvlComplete.soundPlayer.Rewind()
+	game.lvlComplete.soundPlayer.Play()
 
 	game.mainplayer.xLoc = 100
 	game.mainplayer.yLoc = 100
