@@ -1,14 +1,16 @@
 # Berzerk Style Game
+Jared Plante
+Ronadlo Auguste
 
 Move Up: Press the Arrow Up key to move your character up on the screen.
 
-Move Down:Press the Arrow Down key to move your character down on the screen.
+Move Down: Press the Arrow Down key to move your character down on the screen.
 
-Move Left:Press the Arrow Left key to move your character left on the screen.
+Move Left: Press the Arrow Left key to move your character left on the screen.
 
-Move Right:Press the Arrow Right key to move your character right on the screen.
+Move Right: Press the Arrow Right key to move your character right on the screen.
 
-Space Bar:Press Space bar key to shoot. 
+Space Bar: Press Space bar key to shoot. 
 
 Progress to the next level by killing all enemies on that floor
 
