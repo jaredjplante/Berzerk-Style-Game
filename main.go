@@ -804,7 +804,7 @@ func createBoundSlice(game *game) {
 			TileXpos := float64(game.curMap.TileWidth * tileX)
 			TileYpos := float64(game.curMap.TileHeight * tileY)
 			tileToDraw := game.curMap.Layers[0].Tiles[tileY*game.curMap.Width+tileX]
-			if tileToDraw.ID == 3 || tileToDraw.ID == 7 {
+			if tileToDraw.ID == 3 || tileToDraw.ID == 7 || tileToDraw.ID == 16 || tileToDraw.ID == 15 {
 				newBoundTile := boundaries{
 					boundTileX:  float64(TileXpos),
 					boundTileY:  float64(TileYpos),
@@ -1068,7 +1068,7 @@ func LoadScoreFont() font.Face {
 		fmt.Println("Error loading font for score:", err)
 	}
 	fontFace, err := opentype.NewFace(trueTypeFont, &opentype.FaceOptions{
-		Size:    20,
+		Size:    55,
 		DPI:     72,
 		Hinting: font.HintingFull,
 	})
