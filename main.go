@@ -47,8 +47,8 @@ const (
 	FRAMES_COUNT         = 4
 	NPC_FRAMES_PER_SHEET = 3
 	numberOfRegNpcs      = 3
-	SHOT_WIDTH           = 64
-	SHOT_HEIGHT          = 72
+	SHOT_WIDTH           = 100
+	SHOT_HEIGHT          = 90
 	SOUND_SAMPLE_RATE    = 48000
 )
 const (
@@ -186,21 +186,38 @@ func (game *game) Update() error {
 			game.mainplayer.pframe = 0
 
 		}
+
+		//handle shot animation
 		for i := range game.playershots {
 			// Update the position based on the direction
-			switch game.playershots[i].direction {
-			case UP:
-				game.playershots[i].yShot -= game.playershots[i].speed
-			case DOWN:
-				game.playershots[i].yShot += game.playershots[i].speed
-			case LEFT:
-				game.playershots[i].xShot -= game.playershots[i].speed
-			case RIGHT:
-				game.playershots[i].xShot += game.playershots[i].speed
+			game.playershots[i].rframeDelay += 1
+			if game.playershots[i].rframeDelay%2 == 0 {
+				game.playershots[i].rframe += 1
+				switch game.playershots[i].direction {
+				case UP:
+					game.playershots[i].yShot -= game.playershots[i].speed
+					if game.playershots[i].rframe == 3 {
+						game.playershots[i].rframe = 0
+					}
+				case DOWN:
+					game.playershots[i].yShot += game.playershots[i].speed
+					if game.playershots[i].rframe == 3 {
+						game.playershots[i].rframe = 0
+					}
+				case LEFT:
+					game.playershots[i].xShot -= game.playershots[i].speed
+					if game.playershots[i].rframe == 3 {
+						game.playershots[i].rframe = 0
+					}
+				case RIGHT:
+					game.playershots[i].xShot += game.playershots[i].speed
+					if game.playershots[i].rframe == 3 {
+						game.playershots[i].rframe = 0
+					}
+				}
 			}
-
-			game.playershots[i] = animateShots(game, game.playershots[i])
 		}
+		//handle gameover
 		if game.gameOver {
 			return nil
 		} else {
@@ -278,9 +295,9 @@ func (game *game) Draw(screen *ebiten.Image) {
 		drawOptions.GeoM.Translate(shot.xShot, shot.yShot)
 		screen.DrawImage(shot.pict.SubImage(image.Rect(
 			shot.rframe*SHOT_WIDTH,
-			game.mainplayer.direction*SHOT_HEIGHT,
+			shot.direction*SHOT_HEIGHT,
 			(shot.rframe+1)*SHOT_WIDTH,
-			(game.mainplayer.direction+1)*SHOT_HEIGHT)).(*ebiten.Image), &drawOptions)
+			(shot.direction+1)*SHOT_HEIGHT)).(*ebiten.Image), &drawOptions)
 	}
 
 	for _, shot := range game.enemyshots {
@@ -347,19 +364,21 @@ func main() {
 // util funcs
 
 // add shots
-func animateShots(game *game, shot Shot) Shot {
-	//for i := range game.playershots {
-	shot.rframeDelay++
-	if shot.rframeDelay >= 1 {
-		shot.rframeDelay = 0
-		shot.rframe++
-		if shot.rframe >= 3 { // Assuming 4 frames per animation
-			shot.rframe = 0
-		}
-	}
-	//}
-	return shot
-}
+//
+//	func animateShots(game *game, shot Shot) Shot {
+//		//for i := range game.playershots {
+//
+//		shot.rframeDelay+=1
+//		if shot.rframeDelay >= 1 {
+//			shot.rframeDelay = 0
+//			shot.rframe++
+//			if shot.rframe >= 3 { // Assuming 4 frames per animation
+//				shot.rframe = 0
+//			}
+//		}
+//		//}
+//		return shot
+//	}
 func npcShots(game *game) {
 	for i := 0; i < len(game.shootnpc); i++ {
 		game.shootnpc[i].shotWait += 1
@@ -571,8 +590,8 @@ func getPlayerShotBounds(game *game, iterator int) collision.BoundingBox {
 	regBounds := collision.BoundingBox{
 		X:      float64(game.playershots[iterator].xShot),
 		Y:      float64(game.playershots[iterator].yShot),
-		Width:  float64(72),
-		Height: float64(game.playershots[iterator].pict.Bounds().Dy()),
+		Width:  float64(100),
+		Height: float64(90),
 	}
 	return regBounds
 }
@@ -581,8 +600,8 @@ func getEnemyShotBounds(game *game, iterator int) collision.BoundingBox {
 	regBounds := collision.BoundingBox{
 		X:      float64(game.enemyshots[iterator].xShot),
 		Y:      float64(game.enemyshots[iterator].yShot),
-		Width:  float64(72),
-		Height: float64(game.enemyshots[iterator].pict.Bounds().Dy()),
+		Width:  float64(100),
+		Height: float64(90),
 	}
 	return regBounds
 }
@@ -921,7 +940,7 @@ func getPlayerInput(game *game) {
 			yShot:     float64(game.mainplayer.yLoc),
 			direction: game.mainplayer.direction,
 			typing:    "player",
-			speed:     10, // set the speed of the projectile
+			speed:     20, // set the speed of the projectile
 		}
 		game.playershots = append(game.playershots, projectile)
 	}
