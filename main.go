@@ -303,7 +303,11 @@ func (game *game) Draw(screen *ebiten.Image) {
 	for _, shot := range game.enemyshots {
 		drawOptions := ebiten.DrawImageOptions{}
 		drawOptions.GeoM.Translate(shot.xShot, shot.yShot)
-		screen.DrawImage(shot.pict, &drawOptions)
+		screen.DrawImage(shot.pict.SubImage(image.Rect(
+			shot.rframe*SHOT_WIDTH,
+			shot.direction*SHOT_HEIGHT,
+			(shot.rframe+1)*SHOT_WIDTH,
+			(shot.direction+1)*SHOT_HEIGHT)).(*ebiten.Image), &drawOptions)
 	}
 
 	//draw text
@@ -364,33 +368,19 @@ func main() {
 // util funcs
 
 // add shots
-//
-//	func animateShots(game *game, shot Shot) Shot {
-//		//for i := range game.playershots {
-//
-//		shot.rframeDelay+=1
-//		if shot.rframeDelay >= 1 {
-//			shot.rframeDelay = 0
-//			shot.rframe++
-//			if shot.rframe >= 3 { // Assuming 4 frames per animation
-//				shot.rframe = 0
-//			}
-//		}
-//		//}
-//		return shot
-//	}
+
 func npcShots(game *game) {
 	for i := 0; i < len(game.shootnpc); i++ {
 		game.shootnpc[i].shotWait += 1
 		if game.shootnpc[i].shotWait%100 == 0 {
-			shotImg := LoadEmbeddedImage("", "projectile.png")
+			shotImg := LoadEmbeddedImage("", "red.png")
 			projectile := Shot{
 				pict:      shotImg,
 				xShot:     float64(game.shootnpc[i].xLoc),
 				yShot:     float64(game.shootnpc[i].yLoc),
 				direction: game.shootnpc[i].direction,
 				typing:    "npc",
-				speed:     10, // set the speed of the projectile
+				speed:     25, // set the speed of the projectile
 			}
 			game.enemyshots = append(game.enemyshots, projectile)
 		}
@@ -400,15 +390,32 @@ func npcShots(game *game) {
 // shots direction/ speed
 func updateEnemyShots(game *game) {
 	for i := range game.enemyshots {
-		switch game.enemyshots[i].direction {
-		case OLDUP:
-			game.enemyshots[i].yShot -= game.enemyshots[i].speed
-		case OLDDOWN:
-			game.enemyshots[i].yShot += game.enemyshots[i].speed
-		case OLDLEFT:
-			game.enemyshots[i].xShot -= game.enemyshots[i].speed
-		case OLDRIGHT:
-			game.enemyshots[i].xShot += game.enemyshots[i].speed
+		// Update the position based on the direction
+		game.enemyshots[i].rframeDelay += 1
+		if game.enemyshots[i].rframeDelay%10 == 0 {
+			game.enemyshots[i].rframe += 1
+			switch game.enemyshots[i].direction {
+			case OLDUP:
+				game.enemyshots[i].yShot -= game.enemyshots[i].speed
+				if game.enemyshots[i].rframe == 3 {
+					game.enemyshots[i].rframe = 0
+				}
+			case OLDDOWN:
+				game.enemyshots[i].yShot += game.enemyshots[i].speed
+				if game.enemyshots[i].rframe == 3 {
+					game.enemyshots[i].rframe = 0
+				}
+			case OLDLEFT:
+				game.enemyshots[i].xShot -= game.enemyshots[i].speed
+				if game.enemyshots[i].rframe == 3 {
+					game.enemyshots[i].rframe = 0
+				}
+			case OLDRIGHT:
+				game.enemyshots[i].xShot += game.enemyshots[i].speed
+				if game.enemyshots[i].rframe == 3 {
+					game.enemyshots[i].rframe = 0
+				}
+			}
 		}
 	}
 }
@@ -940,7 +947,7 @@ func getPlayerInput(game *game) {
 			yShot:     float64(game.mainplayer.yLoc),
 			direction: game.mainplayer.direction,
 			typing:    "player",
-			speed:     20, // set the speed of the projectile
+			speed:     25, // set the speed of the projectile
 		}
 		game.playershots = append(game.playershots, projectile)
 	}
