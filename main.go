@@ -148,7 +148,7 @@ func (game *game) Update() error {
 	game.playershots = checkShotCollisions(game, game.playershots)
 	game.enemyshots = checkShotCollisions(game, game.enemyshots)
 	checkChosen(game)
-	headToPlayer(game)
+	game.path, game.path2 = headToPlayer(game, game.path, game.path2)
 	game.mapTransition()
 	//walkPath(game, game.shootnpc, game.path)
 	//walkPath(game, game.regnpc, game.path2)
@@ -547,14 +547,14 @@ func checkChosen(game *game) {
 	}
 }
 
-func headToPlayer(game *game) {
+func headToPlayer(game *game, path1 *paths.Path, path2 *paths.Path) (*paths.Path, *paths.Path) {
 	for i := 0; i < len(game.shootnpc); i++ {
 		if game.shootnpc[i].chosen {
 			startRow := int(game.shootnpc[i].yLoc) / game.curMap.TileHeight
 			startCol := int(game.shootnpc[i].xLoc) / game.curMap.TileWidth
 			startCell := game.pathMap.Get(startCol, startRow)
 			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
-			game.path = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
+			path1 = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
 		}
 	}
 	for i := 0; i < len(game.regnpc); i++ {
@@ -563,9 +563,10 @@ func headToPlayer(game *game) {
 			startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
 			startCell := game.pathMap2.Get(startCol, startRow)
 			endCell := game.pathMap2.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
-			game.path2 = game.pathMap2.GetPathFromCells(startCell, endCell, false, false)
+			path2 = game.pathMap2.GetPathFromCells(startCell, endCell, false, false)
 		}
 	}
+	return path1, path2
 }
 
 func walkPath(game *game, npc []player, path *paths.Path) {
