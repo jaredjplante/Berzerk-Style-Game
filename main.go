@@ -36,7 +36,6 @@ import (
 //go:embed assets/*
 var EmbeddedAssets embed.FS
 
-// test
 const (
 	WINDOW_WIDTH         = 1000
 	WINDOW_HEIGHT        = 1000
