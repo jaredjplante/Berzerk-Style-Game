@@ -143,12 +143,11 @@ type obj struct {
 func (game *game) Update() error {
 	getPlayerInput(game)
 	checkPlayerCollisions(game)
-	//game.shootnpc = checkEnemyCollisions(game, game.shootnpc)
-	//game.regnpc = checkEnemyCollisions(game, game.regnpc)
+	game.shootnpc = checkEnemyCollisions(game, game.shootnpc)
+	game.regnpc = checkEnemyCollisions(game, game.regnpc)
 	game.playershots = checkShotCollisions(game, game.playershots)
 	game.enemyshots = checkShotCollisions(game, game.enemyshots)
 	checkChosen(game)
-	//game.path, game.path2 = headToPlayer(game, game.path, game.path2)
 	walkPath(game, game.shootnpc, game.path)
 	walkPath(game, game.regnpc, game.path2)
 	game.mapTransition()
@@ -225,7 +224,6 @@ func (game *game) Update() error {
 			}
 		}
 	}
-
 	npcShots(game)
 	updateEnemyShots(game)
 	return nil
@@ -399,7 +397,9 @@ func main() {
 	}
 	createBoundSlice(&game)
 	randomEnemy(&game)
-	game.path = headToPlayer(&game)
+	checkChosen(&game)
+	//game.path = createPathShoot(&game)
+	//game.path2 = createPathReg(&game)
 
 	err := ebiten.RunGame(&game)
 	if err != nil {
@@ -537,36 +537,42 @@ func checkChosen(game *game) {
 		if curShoot != 0 {
 			game.shootnpc[rand.Intn(curShoot)].chosen = true
 			game.chosenNum += 1
+			game.path = createPathShoot(game)
 		}
 		if curReg != 0 {
 			game.regnpc[rand.Intn(curReg)].chosen = true
 			game.chosenNum += 1
+			game.path2 = createPathReg(game)
 		}
 
 	}
 }
 
-// func headToPlayer(game *game, path1 *paths.Path, path2 *paths.Path) (*paths.Path, *paths.Path) {
-func headToPlayer(game *game) *paths.Path {
+func createPathShoot(game *game) *paths.Path {
 	for i := 0; i < len(game.shootnpc); i++ {
-		//if game.shootnpc[i].chosen {
-		startRow := int(game.shootnpc[i].yLoc) / game.curMap.TileHeight
-		startCol := int(game.shootnpc[i].xLoc) / game.curMap.TileWidth
-		startCell := game.pathMap.Get(startCol, startRow)
-		endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
-		path1 := game.pathMap.GetPathFromCells(startCell, endCell, false, true)
-		return path1
-		//}
+		if game.shootnpc[i].chosen {
+			startRow := int(game.shootnpc[i].yLoc) / game.curMap.TileHeight
+			startCol := int(game.shootnpc[i].xLoc) / game.curMap.TileWidth
+			startCell := game.pathMap.Get(startCol, startRow)
+			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+			path1 := game.pathMap.GetPathFromCells(startCell, endCell, false, true)
+			return path1
+		}
 	}
-	//for i := 0; i < len(game.regnpc); i++ {
-	//	if game.regnpc[i].chosen {
-	//		startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
-	//		startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
-	//		startCell := game.pathMap2.Get(startCol, startRow)
-	//		endCell := game.pathMap2.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
-	//		path2 = game.pathMap2.GetPathFromCells(startCell, endCell, false, true)
-	//	}
-	//}
+	return nil
+}
+
+func createPathReg(game *game) *paths.Path {
+	for i := 0; i < len(game.regnpc); i++ {
+		if game.regnpc[i].chosen {
+			startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
+			startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
+			startCell := game.pathMap2.Get(startCol, startRow)
+			endCell := game.pathMap2.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+			path2 := game.pathMap2.GetPathFromCells(startCell, endCell, false, true)
+			return path2
+		}
+	}
 	return nil
 }
 
@@ -884,7 +890,8 @@ func createBoundSlice(game *game) {
 			TileXpos := float64(game.curMap.TileWidth * tileX)
 			TileYpos := float64(game.curMap.TileHeight * tileY)
 			tileToDraw := game.curMap.Layers[0].Tiles[tileY*game.curMap.Width+tileX]
-			if tileToDraw.ID == 3 || tileToDraw.ID == 7 || tileToDraw.ID == 16 || tileToDraw.ID == 15 {
+			//if tileToDraw.ID == 3 || tileToDraw.ID == 7 || tileToDraw.ID == 16 || tileToDraw.ID == 15 {
+			if tileToDraw.ID == 3 {
 				newBoundTile := boundaries{
 					boundTileX:  float64(TileXpos),
 					boundTileY:  float64(TileYpos),
@@ -1054,6 +1061,11 @@ func (game *game) loadNextMap() {
 		return
 	}
 	game.curMap = newMap
+	game.pathFindingMap = makeSearchMap(game.curMap)
+	game.pathMap = paths.NewGridFromStringArrays(game.pathFindingMap, game.curMap.TileWidth, game.curMap.TileHeight)
+	game.pathMap.SetWalkable('3', false)
+	game.pathMap2 = paths.NewGridFromStringArrays(game.pathFindingMap, game.curMap.TileWidth, game.curMap.TileHeight)
+	game.pathMap2.SetWalkable('3', false)
 
 	// update tileDict for the new map
 	game.tileDict = makeEbitenImagesFromMap(*newMap)
