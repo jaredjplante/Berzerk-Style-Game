@@ -41,8 +41,8 @@ const (
 	WINDOW_HEIGHT        = 1000
 	PLAYERS_HEIGHT       = 64
 	PLAYERS_WIDTH        = 64
-	NPC1_HEIGHT          = 72
-	NPC1_WIDTH           = 64
+	NPC1_HEIGHT          = 45
+	NPC1_WIDTH           = 40
 	FRAMES_PER_SHEET     = 8
 	FRAMES_COUNT         = 4
 	NPC_FRAMES_PER_SHEET = 3
@@ -143,18 +143,17 @@ type obj struct {
 func (game *game) Update() error {
 	getPlayerInput(game)
 	checkPlayerCollisions(game)
-	game.shootnpc = checkEnemyCollisions(game, game.shootnpc)
-	game.regnpc = checkEnemyCollisions(game, game.regnpc)
+	//game.shootnpc = checkEnemyCollisions(game, game.shootnpc)
+	//game.regnpc = checkEnemyCollisions(game, game.regnpc)
 	game.playershots = checkShotCollisions(game, game.playershots)
 	game.enemyshots = checkShotCollisions(game, game.enemyshots)
 	checkChosen(game)
-	game.path, game.path2 = headToPlayer(game, game.path, game.path2)
+	//game.path, game.path2 = headToPlayer(game, game.path, game.path2)
+	walkPath(game, game.shootnpc, game.path)
+	walkPath(game, game.regnpc, game.path2)
 	game.mapTransition()
-	//walkPath(game, game.shootnpc, game.path)
-	//walkPath(game, game.regnpc, game.path2)
 	NpcAnimation(game, game.shootnpc)
 	NpcAnimation(game, game.regnpc)
-	//print(game.chosenNum)
 
 	game.mainplayer.pframeDelay += 1
 	X, Y := game.mainplayer.xLoc, game.mainplayer.yLoc
@@ -227,8 +226,6 @@ func (game *game) Update() error {
 		}
 	}
 
-	walkPath(game, game.shootnpc, game.path)
-	walkPath(game, game.regnpc, game.path2)
 	npcShots(game)
 	updateEnemyShots(game)
 	return nil
@@ -402,6 +399,8 @@ func main() {
 	}
 	createBoundSlice(&game)
 	randomEnemy(&game)
+	game.path = headToPlayer(&game)
+
 	err := ebiten.RunGame(&game)
 	if err != nil {
 		fmt.Println("Couldn't run game:", err)
@@ -475,13 +474,13 @@ func NpcAnimation(game *game, npcs []player) {
 				npcs[i].pframe = 0
 			}
 			if npcs[i].direction == OLDLEFT {
-				npcs[i].xLoc -= 5
+				//npcs[i].xLoc -= 5
 			} else if npcs[i].direction == OLDRIGHT {
-				npcs[i].xLoc += 5
+				//npcs[i].xLoc += 5
 			} else if npcs[i].direction == OLDUP {
-				npcs[i].yLoc -= 5
+				//npcs[i].yLoc -= 5
 			} else if npcs[i].direction == OLDDOWN {
-				npcs[i].yLoc += 5
+				//npcs[i].yLoc += 5
 			}
 
 		}
@@ -547,26 +546,28 @@ func checkChosen(game *game) {
 	}
 }
 
-func headToPlayer(game *game, path1 *paths.Path, path2 *paths.Path) (*paths.Path, *paths.Path) {
+// func headToPlayer(game *game, path1 *paths.Path, path2 *paths.Path) (*paths.Path, *paths.Path) {
+func headToPlayer(game *game) *paths.Path {
 	for i := 0; i < len(game.shootnpc); i++ {
-		if game.shootnpc[i].chosen {
-			startRow := int(game.shootnpc[i].yLoc) / game.curMap.TileHeight
-			startCol := int(game.shootnpc[i].xLoc) / game.curMap.TileWidth
-			startCell := game.pathMap.Get(startCol, startRow)
-			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
-			path1 = game.pathMap.GetPathFromCells(startCell, endCell, false, false)
-		}
+		//if game.shootnpc[i].chosen {
+		startRow := int(game.shootnpc[i].yLoc) / game.curMap.TileHeight
+		startCol := int(game.shootnpc[i].xLoc) / game.curMap.TileWidth
+		startCell := game.pathMap.Get(startCol, startRow)
+		endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+		path1 := game.pathMap.GetPathFromCells(startCell, endCell, false, true)
+		return path1
+		//}
 	}
-	for i := 0; i < len(game.regnpc); i++ {
-		if game.regnpc[i].chosen {
-			startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
-			startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
-			startCell := game.pathMap2.Get(startCol, startRow)
-			endCell := game.pathMap2.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
-			path2 = game.pathMap2.GetPathFromCells(startCell, endCell, false, false)
-		}
-	}
-	return path1, path2
+	//for i := 0; i < len(game.regnpc); i++ {
+	//	if game.regnpc[i].chosen {
+	//		startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
+	//		startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
+	//		startCell := game.pathMap2.Get(startCol, startRow)
+	//		endCell := game.pathMap2.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+	//		path2 = game.pathMap2.GetPathFromCells(startCell, endCell, false, true)
+	//	}
+	//}
+	return nil
 }
 
 func walkPath(game *game, npc []player, path *paths.Path) {
@@ -578,12 +579,12 @@ func walkPath(game *game, npc []player, path *paths.Path) {
 				math.Abs(float64(pathCell.Y*game.curMap.TileHeight)-float64(npc[i].yLoc)) <= 2 { //if we are now on the tile we need to be on
 				path.Advance()
 			}
-			if path.AtEnd() {
-				path = nil
-				npc[i].chosen = false
-				game.chosenNum -= 1
-				return
-			}
+			//if path.AtEnd() {
+			//	path = nil
+			//	npc[i].chosen = false
+			//	game.chosenNum -= 1
+			//	return
+			//}
 			direction := 0.0
 			if pathCell.X*game.curMap.TileWidth > int(npc[i].xLoc) {
 				direction = 1.0
@@ -776,7 +777,8 @@ func checkEnemyCollisions(game *game, npcs []player) []player {
 		}
 		for i := 0; i < len(game.boundTiles); i++ {
 			tileBounds := getTileBounds(game, i)
-			if collision.AABBCollision(enemyBounds, tileBounds) {
+			if collision.AABBCollision(enemyBounds, tileBounds) && npcs[j].chosen == false {
+				//if collision.AABBCollision(enemyBounds, tileBounds) {
 				enemyBool = true
 			}
 		}
