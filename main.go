@@ -585,12 +585,16 @@ func walkPath(game *game, npc []player, path *paths.Path) {
 				math.Abs(float64(pathCell.Y*game.curMap.TileHeight)-float64(npc[i].yLoc)) <= 2 { //if we are now on the tile we need to be on
 				path.Advance()
 			}
-			//if path.AtEnd() {
-			//	path = nil
-			//	npc[i].chosen = false
-			//	game.chosenNum -= 1
-			//	return
-			//}
+			if path.AtEnd() {
+				if npc[i].typing == "shoot" {
+					game.path = nil
+					game.path = createPathShoot(game)
+				}
+				if npc[i].typing == "reg" {
+					game.path2 = nil
+					game.path2 = createPathReg(game)
+				}
+			}
 			direction := 0.0
 			if pathCell.X*game.curMap.TileWidth > int(npc[i].xLoc) {
 				direction = 1.0
