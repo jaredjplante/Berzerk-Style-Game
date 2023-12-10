@@ -102,16 +102,17 @@ type sound struct {
 }
 
 type player struct {
-	spriteSheet *ebiten.Image
-	xLoc        int
-	yLoc        int
-	direction   int
-	pframe      int
-	pframeDelay int
-	health      int
-	typing      string
-	chosen      bool
-	shotWait    int
+	spriteSheet  *ebiten.Image
+	xLoc         int
+	yLoc         int
+	direction    int
+	pframe       int
+	pframeDelay  int
+	health       int
+	typing       string
+	chosen       bool
+	shotWait     int
+	npcMoveTimer int
 }
 
 type boundaries struct {
@@ -323,12 +324,12 @@ func main() {
 	time.Now().UnixNano()
 
 	regNpcs := []player{
-		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false},  // NPC1
-		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false}, // NPC2
-		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false}, // NPC3
+		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false, npcMoveTimer: 15},  // NPC1
+		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false, npcMoveTimer: 15}, // NPC2
+		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false, npcMoveTimer: 15}, // NPC3
 	}
 	shootNpcs := []player{
-		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "shoot", chosen: false}, // NPC4
+		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "shoot", chosen: false, npcMoveTimer: 15}, // NPC4
 	}
 
 	regNpcs = make([]player, 0, numberOfRegNpcs)
@@ -398,8 +399,6 @@ func main() {
 	createBoundSlice(&game)
 	randomEnemy(&game)
 	checkChosen(&game)
-	//game.path = createPathShoot(&game)
-	//game.path2 = createPathReg(&game)
 
 	err := ebiten.RunGame(&game)
 	if err != nil {
@@ -467,20 +466,40 @@ func updateEnemyShots(game *game) {
 
 func NpcAnimation(game *game, npcs []player) {
 	for i := 0; i < len(npcs); i++ {
+		npcs[i].npcMoveTimer += 1
 		npcs[i].pframeDelay += 1
 		if npcs[i].pframeDelay%10 == 0 {
 			npcs[i].pframe += 1
 			if npcs[i].pframe >= NPC_FRAMES_PER_SHEET {
 				npcs[i].pframe = 0
 			}
-			if npcs[i].direction == OLDLEFT {
-				//npcs[i].xLoc -= 5
-			} else if npcs[i].direction == OLDRIGHT {
-				//npcs[i].xLoc += 5
-			} else if npcs[i].direction == OLDUP {
-				//npcs[i].yLoc -= 5
-			} else if npcs[i].direction == OLDDOWN {
-				//npcs[i].yLoc += 5
+			//generate random movement for npcs not chosen to chase player
+			if npcs[i].chosen == false {
+				if npcs[i].npcMoveTimer%15 == 0 {
+					ranMove := rand.Intn(4)
+					if ranMove == 1 {
+						npcs[i].direction = OLDLEFT
+					}
+					if ranMove == 2 {
+						npcs[i].direction = OLDRIGHT
+					}
+					if ranMove == 3 {
+						npcs[i].direction = OLDUP
+					}
+					if ranMove == 4 {
+						npcs[i].direction = OLDDOWN
+					}
+				}
+
+				if npcs[i].direction == OLDLEFT {
+					npcs[i].xLoc -= 5
+				} else if npcs[i].direction == OLDRIGHT {
+					npcs[i].xLoc += 5
+				} else if npcs[i].direction == OLDUP {
+					npcs[i].yLoc -= 5
+				} else if npcs[i].direction == OLDDOWN {
+					npcs[i].yLoc += 5
+				}
 			}
 
 		}
