@@ -149,8 +149,6 @@ func (game *game) Update() error {
 	game.regnpc = checkEnemyCollisions(game, game.regnpc)
 	game.playershots = checkShotCollisions(game, game.playershots)
 	game.enemyshots = checkShotCollisions(game, game.enemyshots)
-	//fsm(game, game.shootnpc, game.path)
-	//fsm(game, game.regnpc, game.path2)
 	checkChase(game)
 	fsmShoot(game)
 	fsmReg(game)
@@ -283,8 +281,6 @@ func (game *game) Draw(screen *ebiten.Image) {
 	if game.gameOver {
 		// Display Game Over message
 		DrawLossScreen(screen, game.textFont)
-		//DrawCenteredText(screen, fmt.Sprintf("Score: %d", game.score), WINDOW_HEIGHT/2, WINDOW_WIDTH/4, game)
-		//DrawCenteredText(screen.game.textFont, game.score)
 		return
 	}
 	if game.win {
@@ -418,7 +414,6 @@ func main() {
 // add shots
 
 func npcShots(game *game, i int) {
-	//for i := 0; i < len(game.shootnpc); i++ {
 	game.shootnpc[i].shotWait += 1
 	if game.shootnpc[i].shotWait%10 == 0 {
 		shotImg := LoadEmbeddedImage("", "red.png")
@@ -434,7 +429,6 @@ func npcShots(game *game, i int) {
 		game.enemyShot.soundPlayer.Rewind()
 		game.enemyShot.soundPlayer.Play()
 	}
-	//}
 }
 
 // shots direction/ speed
@@ -531,7 +525,6 @@ func playerLifeLoss(game *game) {
 	}
 }
 
-// maybe add in healthbar?
 func handleDeath(game *game) {
 	game.gameOver = true
 	ebiten.SetMaxTPS(0)
@@ -541,7 +534,6 @@ func handleDeath(game *game) {
 
 func fsmShoot(game *game) {
 	//random enemies chase player
-	//walkPath(game, game.shootnpc)
 	for i := 0; i < len(game.shootnpc); i++ {
 		if game.shootnpc[i].state == "" {
 			game.shootnpc[i].state = "wander"
@@ -652,25 +644,21 @@ func checkChase(game *game) {
 }
 
 func createPathShoot(game *game, i int) *paths.Path {
-	//for i := 0; i < len(game.shootnpc); i++ {
 	startRow := int(game.shootnpc[i].yLoc) / game.curMap.TileHeight
 	startCol := int(game.shootnpc[i].xLoc) / game.curMap.TileWidth
 	startCell := game.pathMap.Get(startCol, startRow)
 	endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
 	path1 := game.pathMap.GetPathFromCells(startCell, endCell, false, true)
 	return path1
-	//}
 }
 
 func createPathReg(game *game, i int) *paths.Path {
-	//for i := 0; i < len(game.regnpc); i++ {
 	startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
 	startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
 	startCell := game.pathMap.Get(startCol, startRow)
 	endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
 	path2 := game.pathMap.GetPathFromCells(startCell, endCell, false, true)
 	return path2
-	//}
 }
 
 func walkPath(game *game, npc []player) {
