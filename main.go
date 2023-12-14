@@ -50,6 +50,7 @@ const (
 	SHOT_WIDTH           = 100
 	SHOT_HEIGHT          = 90
 	SOUND_SAMPLE_RATE    = 48000
+	PADDING              = 100
 )
 const (
 	UP = iota
@@ -74,9 +75,6 @@ type game struct {
 	regnpc         []player
 	pathFindingMap []string
 	pathMap        *paths.Grid
-	path           *paths.Path
-	pathMap2       *paths.Grid
-	path2          *paths.Path
 	playershots    []Shot
 	enemyshots     []Shot
 	spawnrate      int
@@ -113,6 +111,8 @@ type player struct {
 	chosen       bool
 	shotWait     int
 	npcMoveTimer int
+	state        string
+	path         *paths.Path
 }
 
 type boundaries struct {
@@ -148,9 +148,14 @@ func (game *game) Update() error {
 	game.regnpc = checkEnemyCollisions(game, game.regnpc)
 	game.playershots = checkShotCollisions(game, game.playershots)
 	game.enemyshots = checkShotCollisions(game, game.enemyshots)
-	checkChosen(game)
-	walkPath(game, game.shootnpc, game.path)
-	walkPath(game, game.regnpc, game.path2)
+	//fsm(game, game.shootnpc, game.path)
+	//fsm(game, game.regnpc, game.path2)
+	checkChase(game)
+	fsmShoot(game)
+	fsmReg(game)
+
+	walkPath(game, game.shootnpc)
+	walkPath(game, game.regnpc)
 	game.mapTransition()
 	NpcAnimation(game, game.shootnpc)
 	NpcAnimation(game, game.regnpc)
@@ -225,7 +230,7 @@ func (game *game) Update() error {
 			}
 		}
 	}
-	npcShots(game)
+
 	updateEnemyShots(game)
 	return nil
 }
@@ -324,12 +329,12 @@ func main() {
 	time.Now().UnixNano()
 
 	regNpcs := []player{
-		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false, npcMoveTimer: 15},  // NPC1
-		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false, npcMoveTimer: 15}, // NPC2
-		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg", chosen: false, npcMoveTimer: 15}, // NPC3
+		{spriteSheet: animationOldMan, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"},  // NPC1
+		{spriteSheet: animationWarrior, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"}, // NPC2
+		{spriteSheet: animationOldLady, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "reg"}, // NPC3
 	}
 	shootNpcs := []player{
-		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "shoot", chosen: false, npcMoveTimer: 15}, // NPC4
+		{spriteSheet: animationShooter, xLoc: WINDOW_WIDTH / 2, yLoc: WINDOW_HEIGHT / 2, typing: "shoot"}, // NPC4
 	}
 
 	regNpcs = make([]player, 0, numberOfRegNpcs)
@@ -385,7 +390,6 @@ func main() {
 		shootnpc:       shootNpcs,
 		pathFindingMap: pathMap,
 		pathMap:        searchablePathMap,
-		pathMap2:       searchablePathMap,
 		//sounds
 		enemyDeath:  enemyDeath,
 		enemyShot:   enemyShot,
@@ -398,7 +402,8 @@ func main() {
 	}
 	createBoundSlice(&game)
 	randomEnemy(&game)
-	checkChosen(&game)
+
+	checkChase(&game)
 
 	err := ebiten.RunGame(&game)
 	if err != nil {
@@ -411,24 +416,24 @@ func main() {
 
 // add shots
 
-func npcShots(game *game) {
-	for i := 0; i < len(game.shootnpc); i++ {
-		game.shootnpc[i].shotWait += 1
-		if game.shootnpc[i].shotWait%100 == 0 {
-			shotImg := LoadEmbeddedImage("", "red.png")
-			projectile := Shot{
-				pict:      shotImg,
-				xShot:     float64(game.shootnpc[i].xLoc),
-				yShot:     float64(game.shootnpc[i].yLoc),
-				direction: game.shootnpc[i].direction,
-				typing:    "npc",
-				speed:     30, // set the speed of the projectile
-			}
-			game.enemyshots = append(game.enemyshots, projectile)
-			game.enemyShot.soundPlayer.Rewind()
-			game.enemyShot.soundPlayer.Play()
+func npcShots(game *game, i int) {
+	//for i := 0; i < len(game.shootnpc); i++ {
+	game.shootnpc[i].shotWait += 1
+	if game.shootnpc[i].shotWait%10 == 0 {
+		shotImg := LoadEmbeddedImage("", "red.png")
+		projectile := Shot{
+			pict:      shotImg,
+			xShot:     float64(game.shootnpc[i].xLoc),
+			yShot:     float64(game.shootnpc[i].yLoc),
+			direction: game.shootnpc[i].direction,
+			typing:    "npc",
+			speed:     30, // set the speed of the projectile
 		}
+		game.enemyshots = append(game.enemyshots, projectile)
+		game.enemyShot.soundPlayer.Rewind()
+		game.enemyShot.soundPlayer.Play()
 	}
+	//}
 }
 
 // shots direction/ speed
@@ -473,24 +478,8 @@ func NpcAnimation(game *game, npcs []player) {
 			if npcs[i].pframe >= NPC_FRAMES_PER_SHEET {
 				npcs[i].pframe = 0
 			}
-			//generate random movement for npcs not chosen to chase player
-			if npcs[i].chosen == false {
-				if npcs[i].npcMoveTimer%15 == 0 {
-					ranMove := rand.Intn(4)
-					if ranMove == 1 {
-						npcs[i].direction = OLDLEFT
-					}
-					if ranMove == 2 {
-						npcs[i].direction = OLDRIGHT
-					}
-					if ranMove == 3 {
-						npcs[i].direction = OLDUP
-					}
-					if ranMove == 4 {
-						npcs[i].direction = OLDDOWN
-					}
-				}
 
+			if npcs[i].state != "chase" && npcs[i].state != "shoot" && npcs[i].state != "track" {
 				if npcs[i].direction == OLDLEFT {
 					npcs[i].xLoc -= 5
 				} else if npcs[i].direction == OLDRIGHT {
@@ -507,7 +496,7 @@ func NpcAnimation(game *game, npcs []player) {
 }
 
 func killEnemy(game *game, npcs []player, iterator int) []player {
-	if npcs[iterator].chosen == true {
+	if npcs[iterator].state == "chase" {
 		game.chosenNum -= 1
 	}
 	game.enemyDeath.soundPlayer.Rewind()
@@ -549,69 +538,159 @@ func handleDeath(game *game) {
 
 //ai
 
-func checkChosen(game *game) {
+func fsmShoot(game *game) {
+	//random enemies chase player
+	//walkPath(game, game.shootnpc)
+	for i := 0; i < len(game.shootnpc); i++ {
+		if game.shootnpc[i].state == "" {
+			game.shootnpc[i].state = "wander"
+		}
+		if game.shootnpc[i].state == "wander" {
+			game.shootnpc[i].npcMoveTimer += 1
+			if game.shootnpc[i].npcMoveTimer%75 == 0 {
+				ranMove := rand.Intn(4)
+				if ranMove == 1 {
+					game.shootnpc[i].direction = OLDLEFT
+				}
+				if ranMove == 2 {
+					game.shootnpc[i].direction = OLDRIGHT
+				}
+				if ranMove == 3 {
+					game.shootnpc[i].direction = OLDUP
+				}
+				if ranMove == 4 {
+					game.shootnpc[i].direction = OLDDOWN
+				}
+			}
+			if checkDeadZoneCollision(game, game.shootnpc[i], game.shootnpc[i].xLoc, game.shootnpc[i].yLoc) {
+				game.shootnpc[i].state = "shoot"
+			}
+		}
+		if game.shootnpc[i].state == "chase" {
+			if game.shootnpc[i].path == nil {
+				game.shootnpc[i].path = createPathShoot(game, i)
+			}
+			if checkDeadZoneCollision(game, game.shootnpc[i], game.shootnpc[i].xLoc, game.shootnpc[i].yLoc) {
+				game.shootnpc[i].state = "shoot"
+			}
+		}
+		if game.shootnpc[i].state == "shoot" {
+			npcShots(game, i)
+			game.shootnpc[i].path = nil
+			game.shootnpc[i].path = createPathShoot(game, i)
+			if checkDeadZoneCollision(game, game.shootnpc[i], game.shootnpc[i].xLoc, game.shootnpc[i].yLoc) == false {
+				game.shootnpc[i].state = "chase"
+			}
+		}
+	}
+}
+
+func fsmReg(game *game) {
+	//random enemies chase player
+	print(game.chosenNum)
+	//walkPath(game, game.regnpc)
+	for i := 0; i < len(game.regnpc); i++ {
+		if game.regnpc[i].state == "" {
+			game.regnpc[i].state = "wander"
+		}
+		if game.regnpc[i].state == "wander" {
+			game.regnpc[i].npcMoveTimer += 1
+			if game.regnpc[i].npcMoveTimer%75 == 0 {
+				ranMove := rand.Intn(4)
+				if ranMove == 1 {
+					game.regnpc[i].direction = OLDLEFT
+				}
+				if ranMove == 2 {
+					game.regnpc[i].direction = OLDRIGHT
+				}
+				if ranMove == 3 {
+					game.regnpc[i].direction = OLDUP
+				}
+				if ranMove == 4 {
+					game.regnpc[i].direction = OLDDOWN
+				}
+			}
+			if checkDeadZoneCollision(game, game.regnpc[i], game.regnpc[i].xLoc, game.regnpc[i].yLoc) {
+				game.regnpc[i].state = "track"
+			}
+		}
+		if game.regnpc[i].state == "track" {
+			if game.regnpc[i].path == nil {
+				game.regnpc[i].path = createPathReg(game, i)
+			}
+			if checkDeadZoneCollision(game, game.regnpc[i], game.regnpc[i].xLoc, game.regnpc[i].yLoc) == false {
+				game.regnpc[i].state = "wander"
+				game.regnpc[i].path = nil
+			}
+		}
+		// only for regular npcs that are chosen
+		if game.regnpc[i].state == "chase" {
+			if game.regnpc[i].path == nil {
+				game.regnpc[i].path = createPathReg(game, i)
+			}
+		}
+	}
+}
+
+func checkChase(game *game) {
 	if game.chosenNum <= 0 {
 		curShoot := len(game.shootnpc)
 		curReg := len(game.regnpc)
-		if curShoot != 0 {
-			game.shootnpc[rand.Intn(curShoot)].chosen = true
+		if curShoot > 0 {
+			ranint := rand.Intn(curShoot)
+			game.shootnpc[ranint].state = "chase"
 			game.chosenNum += 1
-			game.path = createPathShoot(game)
+			game.shootnpc[ranint].path = createPathShoot(game, ranint)
 		}
-		if curReg != 0 {
-			game.regnpc[rand.Intn(curReg)].chosen = true
+		if curReg > 0 {
+			ranint := rand.Intn(curReg)
+			game.regnpc[ranint].state = "chase"
 			game.chosenNum += 1
-			game.path2 = createPathReg(game)
+			game.regnpc[ranint].path = createPathReg(game, ranint)
 		}
 
 	}
 }
 
-func createPathShoot(game *game) *paths.Path {
-	for i := 0; i < len(game.shootnpc); i++ {
-		if game.shootnpc[i].chosen {
-			startRow := int(game.shootnpc[i].yLoc) / game.curMap.TileHeight
-			startCol := int(game.shootnpc[i].xLoc) / game.curMap.TileWidth
-			startCell := game.pathMap.Get(startCol, startRow)
-			endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
-			path1 := game.pathMap.GetPathFromCells(startCell, endCell, false, true)
-			return path1
-		}
-	}
-	return nil
+func createPathShoot(game *game, i int) *paths.Path {
+	//for i := 0; i < len(game.shootnpc); i++ {
+	startRow := int(game.shootnpc[i].yLoc) / game.curMap.TileHeight
+	startCol := int(game.shootnpc[i].xLoc) / game.curMap.TileWidth
+	startCell := game.pathMap.Get(startCol, startRow)
+	endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+	path1 := game.pathMap.GetPathFromCells(startCell, endCell, false, true)
+	return path1
+	//}
 }
 
-func createPathReg(game *game) *paths.Path {
-	for i := 0; i < len(game.regnpc); i++ {
-		if game.regnpc[i].chosen {
-			startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
-			startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
-			startCell := game.pathMap2.Get(startCol, startRow)
-			endCell := game.pathMap2.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
-			path2 := game.pathMap2.GetPathFromCells(startCell, endCell, false, true)
-			return path2
-		}
-	}
-	return nil
+func createPathReg(game *game, i int) *paths.Path {
+	//for i := 0; i < len(game.regnpc); i++ {
+	startRow := int(game.regnpc[i].yLoc) / game.curMap.TileHeight
+	startCol := int(game.regnpc[i].xLoc) / game.curMap.TileWidth
+	startCell := game.pathMap.Get(startCol, startRow)
+	endCell := game.pathMap.Get(game.mainplayer.xLoc/game.curMap.TileWidth, game.mainplayer.yLoc/game.curMap.TileHeight)
+	path2 := game.pathMap.GetPathFromCells(startCell, endCell, false, true)
+	return path2
+	//}
 }
 
-func walkPath(game *game, npc []player, path *paths.Path) {
+func walkPath(game *game, npc []player) {
 	//fmt.Println(npc)
 	for i := 0; i < len(npc); i++ {
-		if path != nil && npc[i].chosen {
-			pathCell := path.Current()
+		if npc[i].path != nil && (npc[i].state == "chase" || npc[i].state == "track") {
+			pathCell := npc[i].path.Current()
 			if math.Abs(float64(pathCell.X*game.curMap.TileWidth)-float64(npc[i].xLoc)) <= 2 &&
 				math.Abs(float64(pathCell.Y*game.curMap.TileHeight)-float64(npc[i].yLoc)) <= 2 { //if we are now on the tile we need to be on
-				path.Advance()
+				npc[i].path.Advance()
 			}
-			if path.AtEnd() {
+			if npc[i].path.AtEnd() {
 				if npc[i].typing == "shoot" {
-					game.path = nil
-					game.path = createPathShoot(game)
+					npc[i].path = nil
+					npc[i].path = createPathShoot(game, i)
 				}
 				if npc[i].typing == "reg" {
-					game.path2 = nil
-					game.path2 = createPathReg(game)
+					npc[i].path = nil
+					npc[i].path = createPathReg(game, i)
 				}
 			}
 			direction := 0.0
@@ -646,6 +725,16 @@ func getPlayerBounds(game *game) collision.BoundingBox {
 		Height: float64(PLAYERS_HEIGHT),
 	}
 	return playerBounds
+}
+
+func getPlayerDeadZone(game *game) collision.BoundingBox {
+	deadZoneBounds := collision.BoundingBox{
+		X:      float64(game.mainplayer.xLoc - PADDING/2),
+		Y:      float64(game.mainplayer.yLoc - PADDING/2),
+		Width:  float64(PLAYERS_WIDTH) + PADDING,
+		Height: float64(PLAYERS_HEIGHT) + PADDING,
+	}
+	return deadZoneBounds
 }
 
 func getRandomBounds(game *game, x int, y int) collision.BoundingBox {
@@ -716,6 +805,22 @@ func getTileBounds(game *game, iterator int) collision.BoundingBox {
 		Height: game.boundTiles[iterator].boundHeight,
 	}
 	return tileBounds
+}
+
+// state change to shoot if true
+
+func checkDeadZoneCollision(game *game, npc player, xloc int, yloc int) bool {
+	deadZone := getPlayerDeadZone(game)
+	npcBounds := collision.BoundingBox{
+		X:      float64(xloc),
+		Y:      float64(yloc),
+		Width:  float64(NPC1_WIDTH),
+		Height: float64(NPC1_HEIGHT),
+	}
+	if collision.AABBCollision(deadZone, npcBounds) {
+		return true
+	}
+	return false
 }
 
 // lose life if true
@@ -806,7 +911,7 @@ func checkEnemyCollisions(game *game, npcs []player) []player {
 		}
 		for i := 0; i < len(game.boundTiles); i++ {
 			tileBounds := getTileBounds(game, i)
-			if collision.AABBCollision(enemyBounds, tileBounds) && npcs[j].chosen == false {
+			if collision.AABBCollision(enemyBounds, tileBounds) && npcs[j].state != "chase" {
 				//if collision.AABBCollision(enemyBounds, tileBounds) {
 				enemyBool = true
 			}
@@ -1087,8 +1192,8 @@ func (game *game) loadNextMap() {
 	game.pathFindingMap = makeSearchMap(game.curMap)
 	game.pathMap = paths.NewGridFromStringArrays(game.pathFindingMap, game.curMap.TileWidth, game.curMap.TileHeight)
 	game.pathMap.SetWalkable('3', false)
-	game.pathMap2 = paths.NewGridFromStringArrays(game.pathFindingMap, game.curMap.TileWidth, game.curMap.TileHeight)
-	game.pathMap2.SetWalkable('3', false)
+	//game.pathMap2 = paths.NewGridFromStringArrays(game.pathFindingMap, game.curMap.TileWidth, game.curMap.TileHeight)
+	//game.pathMap2.SetWalkable('3', false)
 
 	// update tileDict for the new map
 	game.tileDict = makeEbitenImagesFromMap(*newMap)
@@ -1120,11 +1225,11 @@ func randomEnemy(game *game) {
 		var npc player
 		switch i % 3 {
 		case 0:
-			npc = player{spriteSheet: LoadEmbeddedImage("", "oldman.png"), xLoc: x, yLoc: y, typing: "reg", chosen: false}
+			npc = player{spriteSheet: LoadEmbeddedImage("", "oldman.png"), xLoc: x, yLoc: y, typing: "reg"}
 		case 1:
-			npc = player{spriteSheet: LoadEmbeddedImage("", "warrior.png"), xLoc: x, yLoc: y, typing: "reg", chosen: false}
+			npc = player{spriteSheet: LoadEmbeddedImage("", "warrior.png"), xLoc: x, yLoc: y, typing: "reg"}
 		case 2:
-			npc = player{spriteSheet: LoadEmbeddedImage("", "oldlady.png"), xLoc: x, yLoc: y, typing: "reg", chosen: false}
+			npc = player{spriteSheet: LoadEmbeddedImage("", "oldlady.png"), xLoc: x, yLoc: y, typing: "reg"}
 		}
 		game.regnpc = append(game.regnpc, npc)
 	}
@@ -1152,6 +1257,7 @@ func randomPosition(maxWidth, maxHeight, npcWidth, npcHeight int) (int, int) {
 func (game *game) mapTransition() {
 	//if no shoot and regnpcs are alive it will load the next map
 	if len(game.shootnpc) == 0 && len(game.regnpc) == 0 {
+		game.chosenNum = 0
 		if game.currMapnumber < 3 {
 			// load the next map
 			game.loadNextMap()
