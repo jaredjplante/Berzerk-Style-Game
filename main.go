@@ -50,7 +50,8 @@ const (
 	SHOT_WIDTH           = 100
 	SHOT_HEIGHT          = 90
 	SOUND_SAMPLE_RATE    = 48000
-	PADDING              = 100
+	PADDING              = 150
+	TRACKPADDING         = 300
 )
 const (
 	UP = iota
@@ -587,8 +588,6 @@ func fsmShoot(game *game) {
 
 func fsmReg(game *game) {
 	//random enemies chase player
-	print(game.chosenNum)
-	//walkPath(game, game.regnpc)
 	for i := 0; i < len(game.regnpc); i++ {
 		if game.regnpc[i].state == "" {
 			game.regnpc[i].state = "wander"
@@ -610,7 +609,7 @@ func fsmReg(game *game) {
 					game.regnpc[i].direction = OLDDOWN
 				}
 			}
-			if checkDeadZoneCollision(game, game.regnpc[i], game.regnpc[i].xLoc, game.regnpc[i].yLoc) {
+			if checktrackZoneCollision(game, game.regnpc[i], game.regnpc[i].xLoc, game.regnpc[i].yLoc) {
 				game.regnpc[i].state = "track"
 			}
 		}
@@ -618,7 +617,7 @@ func fsmReg(game *game) {
 			if game.regnpc[i].path == nil {
 				game.regnpc[i].path = createPathReg(game, i)
 			}
-			if checkDeadZoneCollision(game, game.regnpc[i], game.regnpc[i].xLoc, game.regnpc[i].yLoc) == false {
+			if checktrackZoneCollision(game, game.regnpc[i], game.regnpc[i].xLoc, game.regnpc[i].yLoc) == false {
 				game.regnpc[i].state = "wander"
 				game.regnpc[i].path = nil
 			}
@@ -675,7 +674,6 @@ func createPathReg(game *game, i int) *paths.Path {
 }
 
 func walkPath(game *game, npc []player) {
-	//fmt.Println(npc)
 	for i := 0; i < len(npc); i++ {
 		if npc[i].path != nil && (npc[i].state == "chase" || npc[i].state == "track") {
 			pathCell := npc[i].path.Current()
@@ -735,6 +733,16 @@ func getPlayerDeadZone(game *game) collision.BoundingBox {
 		Height: float64(PLAYERS_HEIGHT) + PADDING,
 	}
 	return deadZoneBounds
+}
+
+func getPlayerTrackZone(game *game) collision.BoundingBox {
+	trackZoneBounds := collision.BoundingBox{
+		X:      float64(game.mainplayer.xLoc - TRACKPADDING/2),
+		Y:      float64(game.mainplayer.yLoc - TRACKPADDING/2),
+		Width:  float64(PLAYERS_WIDTH) + TRACKPADDING,
+		Height: float64(PLAYERS_HEIGHT) + TRACKPADDING,
+	}
+	return trackZoneBounds
 }
 
 func getRandomBounds(game *game, x int, y int) collision.BoundingBox {
@@ -808,7 +816,6 @@ func getTileBounds(game *game, iterator int) collision.BoundingBox {
 }
 
 // state change to shoot if true
-
 func checkDeadZoneCollision(game *game, npc player, xloc int, yloc int) bool {
 	deadZone := getPlayerDeadZone(game)
 	npcBounds := collision.BoundingBox{
@@ -818,6 +825,21 @@ func checkDeadZoneCollision(game *game, npc player, xloc int, yloc int) bool {
 		Height: float64(NPC1_HEIGHT),
 	}
 	if collision.AABBCollision(deadZone, npcBounds) {
+		return true
+	}
+	return false
+}
+
+// change state to track or chase if true
+func checktrackZoneCollision(game *game, npc player, xloc int, yloc int) bool {
+	trackZone := getPlayerTrackZone(game)
+	npcBounds := collision.BoundingBox{
+		X:      float64(xloc),
+		Y:      float64(yloc),
+		Width:  float64(NPC1_WIDTH),
+		Height: float64(NPC1_HEIGHT),
+	}
+	if collision.AABBCollision(trackZone, npcBounds) {
 		return true
 	}
 	return false
@@ -911,7 +933,7 @@ func checkEnemyCollisions(game *game, npcs []player) []player {
 		}
 		for i := 0; i < len(game.boundTiles); i++ {
 			tileBounds := getTileBounds(game, i)
-			if collision.AABBCollision(enemyBounds, tileBounds) && npcs[j].state != "chase" {
+			if collision.AABBCollision(enemyBounds, tileBounds) && npcs[j].state != "chase" && npcs[j].state != "track" && npcs[j].state != "shoot" {
 				//if collision.AABBCollision(enemyBounds, tileBounds) {
 				enemyBool = true
 			}
@@ -924,8 +946,12 @@ func checkEnemyCollisions(game *game, npcs []player) []player {
 	return npcs
 }
 
+// make sure npcs do not spawn in the wrong places
 func checkSpawnCollisions(game *game, x int, y int) bool {
 	randomBounds := getRandomBounds(game, x, y)
+	if collision.AABBCollision(randomBounds, getPlayerTrackZone(game)) {
+		return true
+	}
 	if collision.AABBCollision(randomBounds, getPlayerBounds(game)) {
 		return true
 	}
