@@ -5,7 +5,7 @@ Ronaldo Auguste
 ############
 
 
-Multiplayer not working because of enet issue with windows 11, we discussed how this group would not do multiplayer
+To run, run main.go
 
 Move Up: Press the Arrow Up key to move your character up on the screen.
 
